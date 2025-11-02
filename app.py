@@ -1445,6 +1445,13 @@ def render_ownership_stage():
             }[x],
             key="policy_type_select"
         )
+        
+        # Clear cached results when policy changes
+        if "last_policy_type" not in st.session_state:
+            st.session_state.last_policy_type = policy_type
+        elif st.session_state.last_policy_type != policy_type:
+            st.session_state.ownership_arrangement = None
+            st.session_state.last_policy_type = policy_type
     
     with col2:
         total_shares = st.number_input("Total Shares", min_value=1000, value=1000000, step=1000)
@@ -1534,6 +1541,12 @@ def render_ownership_stage():
     # Generate ownership arrangement
     if st.button("Finalize Ownership Arrangement", key="finalize_ownership"):
         with st.spinner("Calculating ownership arrangement..."):
+            # Debug: Show what we're sending
+            st.write("**Debug - Sending to API:**")
+            st.write(f"Policy Type: {policy_type}")
+            st.write(f"Policy Params: {policy_params}")
+            st.write(f"Attribution Weights: {st.session_state.attribution_results['attributions']}")
+            
             response = asyncio.run(call_api_async(
                 "/v1/agents/allocation/finalize",
                 data={
@@ -1568,6 +1581,9 @@ def render_ownership_stage():
         
         df = pd.DataFrame(ownership_data)
         st.dataframe(df, use_container_width=True)
+        
+        # Display total shares actually used
+        st.info(f"**Total Shares:** {arrangement['total_shares']:,} | **Policy Applied:** {arrangement['policy_applied']}")
         
         # Visualization
         names = [share["contributor_name"] for share in arrangement["ownership_table"]]
