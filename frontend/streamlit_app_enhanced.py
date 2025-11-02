@@ -96,16 +96,29 @@ st.markdown("""
 
 /* Professional color scheme */
 .stSelectbox > div > div {
-    background-color: #f7fafc;
-    border-color: #e2e8f0;
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #2d3748 !important;
 }
 .stTextInput > div > div > input {
-    background-color: #f7fafc;
-    border-color: #e2e8f0;
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #2d3748 !important;
+    caret-color: #2d3748 !important;
 }
 .stTextArea > div > div > textarea {
-    background-color: #f7fafc;
-    border-color: #e2e8f0;
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #2d3748 !important;
+    caret-color: #2d3748 !important;
+}
+
+/* Number inputs */
+.stNumberInput > div > div > input {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #2d3748 !important;
+    caret-color: #2d3748 !important;
 }
 
 /* Remove large numbers and improve formatting */
@@ -148,6 +161,33 @@ h1:contains("1") {
 input, textarea, .stTextInput input, .stTextArea textarea {
     color: #2d3748 !important;
     background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
+}
+
+/* Form elements - ensure dark text */
+.stSelectbox > div > div > div,
+.stSelectbox > div > div > div > div,
+.stSelectbox select,
+.stNumberInput input,
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    color: #2d3748 !important;
+    background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
+}
+
+/* Selectbox dropdown options */
+.stSelectbox [data-baseweb="select"] {
+    color: #2d3748 !important;
+    background-color: #ffffff !important;
+}
+
+/* Form labels */
+.stSelectbox label,
+.stTextInput label,
+.stTextArea label,
+.stNumberInput label {
+    color: #e2e8f0 !important;
 }
 
 /* Status messages - inherit from container */
@@ -221,16 +261,19 @@ input, textarea, .stTextInput input, .stTextArea textarea {
     color: #2d3748 !important;
     background-color: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
+    caret-color: #2d3748 !important;
 }
 
 .stChatInput input {
     color: #2d3748 !important;
     background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
 }
 
 .stChatInput textarea {
     color: #2d3748 !important;
     background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
 }
 
 /* Chat input placeholder */
@@ -338,6 +381,7 @@ def initialize_session_state():
         "asset_type": "software",
         "jurisdictions": ["UK"],
         "messages": [],
+        "general_messages": [],
         "pipeline_data": {},
         "contributors": [],
         "contribution_events": [],
@@ -485,6 +529,34 @@ def render_ip_options_stage():
             with st.chat_message(message["role"]):
                 st.write(message["content"])
         
+        # Quick action buttons - appear after getting recommendations
+        if st.session_state.pipeline_data.get("ip_options") and st.session_state.messages:
+            st.markdown("---")
+            st.markdown("### Quick Actions")
+            col_a, col_b, col_c = st.columns(3)
+            
+            with col_a:
+                if st.button("Proceed to Attribution", key="proceed_to_attribution"):
+                    st.session_state.current_stage = 1
+                    st.rerun()
+            
+            with col_b:
+                if st.button("Get More Details", key="get_more_details"):
+                    # Auto-populate chat with follow-up question
+                    follow_up = "Can you provide more detailed analysis of the recommended protection options?"
+                    st.session_state.messages.append({"role": "user", "content": follow_up})
+                    st.rerun()
+            
+            with col_c:
+                if st.button("New Analysis", key="new_analysis"):
+                    # Clear current analysis
+                    if "ip_options" in st.session_state.pipeline_data:
+                        del st.session_state.pipeline_data["ip_options"]
+                    st.session_state.messages = []
+                    st.rerun()
+            
+            st.markdown("---")
+        
         # Chat input
         if prompt := st.chat_input("Ask about IP protection options..."):
             # Add user message
@@ -492,6 +564,17 @@ def render_ip_options_stage():
             
             with st.chat_message("user"):
                 st.write(prompt)
+            
+            # Check for advancement keywords
+            if prompt.lower().strip() in ['yes', 'y', 'proceed', 'continue', 'next', 'move on']:
+                # Auto-advance to next stage
+                st.session_state.current_stage = min(4, st.session_state.current_stage + 1)
+                success_msg = "Great! Moving to the next stage: Contribution Attribution. Please switch to that stage using the Next button above."
+                with st.chat_message("assistant"):
+                    st.success(success_msg)
+                st.session_state.messages.append({"role": "assistant", "content": success_msg})
+                st.rerun()
+                return
             
             # Get AI response
             with st.chat_message("assistant"):
@@ -522,9 +605,15 @@ def render_ip_options_stage():
                                 response_text += f"• {step}\n"
                             
                             if response.get("citations"):
-                                response_text += f"\n**Citations:**\n"
+                                response_text += f"\n**References:**\n"
                                 for citation in response["citations"]:
                                     response_text += f"• {citation}\n"
+                            
+                            # Add prompting question
+                            response_text += f"\n**Would you like to proceed with these recommendations?**\n"
+                            response_text += f"• Type 'yes' to move to the next stage (Contribution Attribution)\n"
+                            response_text += f"• Type 'more info' for additional details\n"
+                            response_text += f"• Ask any follow-up questions about these options"
                             
                             st.write(response_text)
                             st.session_state.messages.append({"role": "assistant", "content": response_text})
@@ -1188,6 +1277,77 @@ def render_final_summary():
             key="download_json"
         )
 
+def render_general_chat():
+    """Render general IP advice chat section"""
+    st.markdown('<div class="stage-header">General IP Advice</div>', unsafe_allow_html=True)
+    st.markdown("Ask any questions about intellectual property law, strategy, or best practices.")
+    
+    # Initialize general chat messages if not exists
+    if "general_messages" not in st.session_state:
+        st.session_state.general_messages = []
+    
+    # Display chat history
+    for message in st.session_state.general_messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+    
+    # Chat input for general advice
+    if prompt := st.chat_input("Ask about IP law, strategy, patents, trademarks, licensing..."):
+        # Add user message
+        st.session_state.general_messages.append({"role": "user", "content": prompt})
+        
+        with st.chat_message("user"):
+            st.write(prompt)
+        
+        # Get AI response
+        with st.chat_message("assistant"):
+            with st.spinner("Consulting IP knowledge base..."):
+                try:
+                    response = asyncio.run(call_api_async(
+                        "/v1/agents/ip-options",
+                        data={
+                            "asset_id": 0,  # General advice doesn't need specific asset
+                            "questions": prompt,
+                            "jurisdictions": st.session_state.jurisdictions,
+                            "conversation_context": st.session_state.general_messages[-5:]
+                        }
+                    ))
+                    
+                    if response:
+                        # Format response professionally
+                        response_text = ""
+                        
+                        if response.get("options"):
+                            response_text += f"**Recommendations:**\n"
+                            for option in response["options"]:
+                                response_text += f"• {option}\n"
+                        
+                        if response.get("risks"):
+                            response_text += f"\n**Considerations:**\n"
+                            for risk in response["risks"]:
+                                response_text += f"• {risk}\n"
+                        
+                        if response.get("next_steps"):
+                            response_text += f"\n**Suggested Actions:**\n"
+                            for step in response["next_steps"]:
+                                response_text += f"• {step}\n"
+                        
+                        if response.get("citations"):
+                            response_text += f"\n**References:**\n"
+                            for citation in response["citations"]:
+                                response_text += f"• {citation}\n"
+                        
+                        if not response_text:
+                            response_text = "I'd be happy to help with your IP question. Could you provide more specific details about your situation?"
+                        
+                        st.write(response_text)
+                        st.session_state.general_messages.append({"role": "assistant", "content": response_text})
+                    
+                except Exception as e:
+                    error_msg = f"I apologize, but I encountered an error while processing your question: {str(e)}"
+                    st.error(error_msg)
+                    st.session_state.general_messages.append({"role": "assistant", "content": error_msg})
+
 def main():
     """Main application function"""
     initialize_session_state()
@@ -1240,23 +1400,30 @@ def main():
         except:
             st.error("❌ API Offline")
     
-    # Main content
-    render_progress_bar()
-    render_stage_overview()
+    # Main content with tabs
+    tab1, tab2 = st.tabs(["IP Pipeline", "General IP Advice"])
     
-    # Render current stage
-    current_stage = st.session_state.current_stage
+    with tab1:
+        # Pipeline content
+        render_progress_bar()
+        render_stage_overview()
+        
+        # Render current stage
+        current_stage = st.session_state.current_stage
+        
+        if current_stage == 0:
+            render_ip_options_stage()
+        elif current_stage == 1:
+            render_attribution_stage()
+        elif current_stage == 2:
+            render_ownership_stage()
+        elif current_stage == 3:
+            render_contracts_stage()
+        elif current_stage == 4:
+            render_licensing_stage()
     
-    if current_stage == 0:
-        render_ip_options_stage()
-    elif current_stage == 1:
-        render_attribution_stage()
-    elif current_stage == 2:
-        render_ownership_stage()
-    elif current_stage == 3:
-        render_contracts_stage()
-    elif current_stage == 4:
-        render_licensing_stage()
+    with tab2:
+        render_general_chat()
 
 if __name__ == "__main__":
     main()
