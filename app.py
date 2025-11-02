@@ -212,10 +212,17 @@ st.markdown("""
     color: #2d3748 !important;
 }
 
-/* Placeholder text in expanders */
+/* Placeholder text in expanders - darker gray */
 .streamlit-expanderContent textarea::placeholder,
 .streamlit-expanderContent input::placeholder {
-    color: #718096 !important;
+    color: #4a5568 !important;
+    font-weight: 400 !important;
+}
+
+/* Global placeholder text - darker */
+textarea::placeholder,
+input::placeholder {
+    color: #4a5568 !important;
 }
 
 /* Radio button styling */
@@ -232,16 +239,21 @@ st.markdown("""
     color: #2d3748 !important;
 }
 
-/* Radio button options text - make darker and more visible */
+/* Radio button options text - make black */
 .stRadio > div > div > label {
-    color: #1a202c !important;
+    color: #000000 !important;
     font-weight: 600 !important;
     font-size: 1rem !important;
 }
 
 .stRadio > div > div > label > div {
-    color: #1a202c !important;
+    color: #000000 !important;
     font-weight: 600 !important;
+}
+
+/* Radio button text content */
+.stRadio > div > div > label span {
+    color: #000000 !important;
 }
 
 /* Radio button input styling */
