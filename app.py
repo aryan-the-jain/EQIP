@@ -18,11 +18,14 @@ import plotly.graph_objects as go
 import pandas as pd
 import uuid
 from io import BytesIO
+import openai
+import json
 
 # Configuration - Use secrets for production, fallback for demo
 try:
     API_BASE = st.secrets["API_BASE"]
     DEMO_MODE = st.secrets.get("DEMO_MODE", "true").lower() == "true"
+    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", None)
     # Pinata IPFS Configuration
     PINATA_API_KEY = st.secrets.get("PINATA_API_KEY", "d302c51df2c240688e3f")
     PINATA_SECRET_KEY = st.secrets.get("PINATA_SECRET_KEY", "6ec5073e8c4a04017eac094e5e8afd5a090cf2ced3f0c362a6838f61f93de1d2")
@@ -30,10 +33,15 @@ try:
 except:
     API_BASE = "http://localhost:8000"
     DEMO_MODE = True
+    OPENAI_API_KEY = None
     # Pinata IPFS Configuration - hardcoded for demo
     PINATA_API_KEY = "d302c51df2c240688e3f"
     PINATA_SECRET_KEY = "6ec5073e8c4a04017eac094e5e8afd5a090cf2ced3f0c362a6838f61f93de1d2"
     PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMWQxYjZjZC05YWVjLTQzNWItYjkyMi1mM2M3MWVhZWE3OTMiLCJlbWFpbCI6ImFyeWFudGhlamFpbkBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiZDMwMmM1MWRmMmMyNDA2ODhlM2YiLCJzY29wZWRLZXlTZWNyZXQiOiI2ZWM1MDczZThjNGEwNDAxN2VhYzA5NGU1ZThhZmQ1YTA5MGNmMmNlZDNmMGMzNjJhNjgzOGY2MWY5M2RlMWQyIiwiZXhwIjoxNzkzNjE1NDgyfQ.MU76XXth3Rh6pC6oS05T5p9oOGK4etLexaEnVLx64aM"
+
+# Override demo mode if OpenAI key is available
+if OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-"):
+    DEMO_MODE = False
 
 # Page configuration
 st.set_page_config(
@@ -1130,8 +1138,82 @@ For production use, please consult with qualified legal counsel.
     else:
         return {"status": "demo_mode", "message": "Demo response"}
 
+async def call_openai_for_ip_advice(question: str, conversation_context: List[dict] = None) -> dict:
+    """Direct OpenAI call for IP advice when API key is available"""
+    if not OPENAI_API_KEY:
+        return None
+    
+    try:
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Build conversation context
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert intellectual property consultant with deep knowledge of UK, EU, and international IP law. 
+                
+                Provide comprehensive, practical advice on intellectual property matters including patents, trademarks, copyright, design rights, and trade secrets.
+                
+                Format your response as a JSON object with these fields:
+                - "options": Array of 3-4 specific protection or strategy options
+                - "risks": Array of 3-4 key risks or considerations  
+                - "next_steps": Array of 3-4 actionable next steps
+                - "citations": Array of 2-3 relevant legal references or sources
+                
+                Keep responses professional, practical, and actionable. Include specific UK/EU legal references where relevant."""
+            }
+        ]
+        
+        # Add conversation context if available
+        if conversation_context:
+            for msg in conversation_context[-3:]:  # Last 3 messages
+                if msg.get("role") in ["user", "assistant"]:
+                    messages.append({
+                        "role": msg["role"],
+                        "content": msg.get("content", "")
+                    })
+        
+        # Add current question
+        messages.append({
+            "role": "user", 
+            "content": question
+        })
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1500
+        )
+        
+        # Try to parse JSON response
+        content = response.choices[0].message.content
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # If not JSON, format as structured response
+            return {
+                "options": [content[:200] + "..." if len(content) > 200 else content],
+                "risks": ["Response formatting issue - please try rephrasing your question"],
+                "next_steps": ["Consider consulting with an IP attorney for specific guidance"],
+                "citations": ["OpenAI GPT-4 Response"]
+            }
+            
+    except Exception as e:
+        st.error(f"OpenAI API Error: {str(e)}")
+        return None
+
 async def call_api_async(endpoint: str, method: str = "POST", data: dict = None) -> dict:
-    """API call function - uses demo mode or real API"""
+    """API call function - uses OpenAI direct, demo mode, or real API"""
+    # Try OpenAI direct for IP options if key is available
+    if not DEMO_MODE and OPENAI_API_KEY and "/v1/agents/ip-options" in endpoint:
+        question = data.get("questions", "")
+        context = data.get("conversation_context", [])
+        openai_response = await call_openai_for_ip_advice(question, context)
+        if openai_response:
+            return openai_response
+    
+    # Fall back to demo mode or backend
     if DEMO_MODE:
         return await call_api_async_demo(endpoint, method, data)
     
@@ -2442,6 +2524,8 @@ def main():
     
     if DEMO_MODE:
         st.info("🎭 Demo Mode - Experience the complete IP pipeline with sample data")
+    elif OPENAI_API_KEY:
+        st.success("🤖 AI Mode - Powered by OpenAI GPT-4 for intelligent IP advice")
     
     # Sidebar
     with st.sidebar:
@@ -2482,6 +2566,8 @@ def main():
         except:
             if DEMO_MODE:
                 st.success("✅ Demo Mode Active")
+            elif OPENAI_API_KEY:
+                st.success("✅ OpenAI Connected")
             else:
                 st.error("❌ System Offline")
     
