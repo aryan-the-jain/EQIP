@@ -170,6 +170,38 @@ st.markdown("""
 .stButton {
     color: #2d3748 !important;
 }
+
+/* Expander and dialog styling */
+.streamlit-expanderHeader {
+    background-color: #f7fafc !important;
+    color: #2d3748 !important;
+}
+
+.streamlit-expanderContent {
+    background-color: #ffffff !important;
+    color: #2d3748 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.streamlit-expanderContent .stMarkdown,
+.streamlit-expanderContent .stMarkdown p,
+.streamlit-expanderContent .stText {
+    color: #2d3748 !important;
+}
+
+/* Radio button styling */
+.stRadio > div {
+    background-color: #f7fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 2px solid #667eea;
+}
+
+.stRadio > div > label {
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    color: #2d3748 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -642,19 +674,21 @@ def render_attribution_stage():
     Choose between two approaches based on your preference and available information.
     """)
     
-    # Method selection
-    st.markdown("### Attribution Method")
+    # Method selection - Make it more prominent
+    st.markdown("---")
+    st.markdown("## 🎯 Choose Attribution Method")
     
     attribution_method = st.radio(
-        "Choose your preferred method:",
+        "Select your preferred approach:",
         ["Quantitative Analysis", "Qualitative Description"],
         format_func=lambda x: {
-            "Quantitative Analysis": "📊 Quantitative - Log specific events (hours, lines of code, complexity)",
-            "Qualitative Description": "📝 Qualitative - Describe contributions in text, AI analyzes and scores"
+            "Quantitative Analysis": "📊 Quantitative Analysis - Log specific events (hours, lines of code, complexity)",
+            "Qualitative Description": "📝 Qualitative Description - Describe contributions in text, AI analyzes and scores"
         }[x],
         key="attribution_method",
         horizontal=True
     )
+    st.markdown("---")
     
     if attribution_method == "Quantitative Analysis":
         st.markdown("""
@@ -924,8 +958,7 @@ def render_qualitative_attribution():
                     ))
                     
                     if response:
-                        # Parse AI response and create attribution results
-                        # For demo mode, create realistic attribution based on description length and keywords
+                        # Enhanced AI analysis with detailed rationale
                         attributions = []
                         total_weight = 0
                         
@@ -934,36 +967,90 @@ def render_qualitative_attribution():
                             name = contrib["display_name"]
                             desc = st.session_state.qualitative_descriptions.get(email, "")
                             
-                            # Simple scoring based on description analysis
-                            score = len(desc.split()) * 0.1  # Base score from description length
+                            # Comprehensive scoring with detailed rationale tracking
+                            score_components = {
+                                "base_contribution": 1.0,
+                                "leadership_indicators": 0.0,
+                                "technical_complexity": 0.0,
+                                "time_investment": 0.0,
+                                "creative_input": 0.0,
+                                "project_impact": 0.0
+                            }
                             
-                            # Keyword-based scoring
-                            high_value_keywords = ["led", "created", "designed", "architected", "implemented", "developed", "managed", "founded"]
-                            medium_value_keywords = ["contributed", "helped", "assisted", "supported", "reviewed", "tested"]
+                            rationale_parts = []
                             
-                            for keyword in high_value_keywords:
-                                if keyword.lower() in desc.lower():
-                                    score += 2.0
+                            # Base score from description completeness
+                            word_count = len(desc.split())
+                            if word_count > 50:
+                                score_components["base_contribution"] = 2.0
+                                rationale_parts.append(f"Comprehensive description ({word_count} words)")
+                            elif word_count > 20:
+                                score_components["base_contribution"] = 1.5
+                                rationale_parts.append(f"Detailed description ({word_count} words)")
+                            else:
+                                rationale_parts.append(f"Basic description ({word_count} words)")
                             
-                            for keyword in medium_value_keywords:
-                                if keyword.lower() in desc.lower():
-                                    score += 1.0
+                            # Leadership and initiative indicators
+                            leadership_keywords = ["led", "founded", "initiated", "managed", "directed", "coordinated", "organized"]
+                            leadership_count = sum(1 for keyword in leadership_keywords if keyword.lower() in desc.lower())
+                            if leadership_count > 0:
+                                score_components["leadership_indicators"] = leadership_count * 1.5
+                                rationale_parts.append(f"Leadership role identified ({leadership_count} indicators)")
                             
-                            # Time/effort indicators
-                            if any(word in desc.lower() for word in ["hours", "weeks", "months", "full-time", "extensive"]):
-                                score += 1.5
+                            # Technical complexity and expertise
+                            tech_keywords = ["architected", "designed", "implemented", "developed", "engineered", "algorithm", "complex", "advanced", "technical"]
+                            tech_count = sum(1 for keyword in tech_keywords if keyword.lower() in desc.lower())
+                            if tech_count > 0:
+                                score_components["technical_complexity"] = tech_count * 1.2
+                                rationale_parts.append(f"Technical expertise demonstrated ({tech_count} technical terms)")
                             
-                            # Technical complexity indicators
-                            if any(word in desc.lower() for word in ["complex", "algorithm", "architecture", "technical", "advanced"]):
-                                score += 1.0
+                            # Time and effort investment
+                            time_indicators = ["hours", "weeks", "months", "full-time", "extensive", "significant", "substantial"]
+                            effort_indicators = ["overtime", "dedicated", "intensive", "thorough", "comprehensive"]
+                            time_count = sum(1 for indicator in time_indicators + effort_indicators if indicator.lower() in desc.lower())
+                            if time_count > 0:
+                                score_components["time_investment"] = time_count * 1.0
+                                rationale_parts.append(f"Significant time investment indicated ({time_count} effort indicators)")
+                            
+                            # Creative and innovative input
+                            creative_keywords = ["created", "invented", "innovated", "conceived", "originated", "pioneered", "breakthrough"]
+                            creative_count = sum(1 for keyword in creative_keywords if keyword.lower() in desc.lower())
+                            if creative_count > 0:
+                                score_components["creative_input"] = creative_count * 1.8
+                                rationale_parts.append(f"Creative innovation recognized ({creative_count} innovation indicators)")
+                            
+                            # Project impact and scope
+                            impact_keywords = ["critical", "essential", "key", "core", "fundamental", "crucial", "vital", "primary"]
+                            impact_count = sum(1 for keyword in impact_keywords if keyword.lower() in desc.lower())
+                            if impact_count > 0:
+                                score_components["project_impact"] = impact_count * 1.3
+                                rationale_parts.append(f"High project impact identified ({impact_count} impact terms)")
+                            
+                            # Calculate total score
+                            total_score = sum(score_components.values())
+                            
+                            # Create detailed rationale
+                            detailed_rationale = f"AI Analysis for {name}:\n"
+                            detailed_rationale += f"• Total Score: {total_score:.1f} points\n"
+                            detailed_rationale += f"• Score Breakdown: "
+                            detailed_rationale += f"Base ({score_components['base_contribution']:.1f}) + "
+                            detailed_rationale += f"Leadership ({score_components['leadership_indicators']:.1f}) + "
+                            detailed_rationale += f"Technical ({score_components['technical_complexity']:.1f}) + "
+                            detailed_rationale += f"Time ({score_components['time_investment']:.1f}) + "
+                            detailed_rationale += f"Creative ({score_components['creative_input']:.1f}) + "
+                            detailed_rationale += f"Impact ({score_components['project_impact']:.1f})\n"
+                            detailed_rationale += f"• Key Factors: {'; '.join(rationale_parts) if rationale_parts else 'Standard contribution'}\n"
+                            detailed_rationale += f"• Methodology: Qualitative text analysis using IP attribution best practices"
                             
                             attributions.append({
                                 "email": email,
                                 "name": name,
-                                "score": max(score, 1.0),  # Minimum score of 1
-                                "description": desc
+                                "score": max(total_score, 1.0),
+                                "description": desc,
+                                "detailed_rationale": detailed_rationale,
+                                "score_components": score_components
                             })
-                            total_weight += max(score, 1.0)
+                            total_weight += max(total_score, 1.0)
                         
                         # Normalize to percentages
                         for attr in attributions:
@@ -989,10 +1076,20 @@ def render_qualitative_attribution():
                 st.markdown("**AI Suggested Attribution:**")
                 for attr in attributions:
                     st.write(f"• **{attr['name']}**: {attr['percentage']:.1f}%")
-                    with st.expander(f"Rationale for {attr['name']}"):
-                        st.write(f"**Description analyzed:** {attr['description'][:200]}...")
-                        st.write(f"**AI Score:** {attr['score']:.1f} points")
-                        st.write(f"**Suggested percentage:** {attr['percentage']:.1f}%")
+                    with st.expander(f"Detailed AI Analysis for {attr['name']}"):
+                        st.markdown("**AI Rationale:**")
+                        st.text(attr['detailed_rationale'])
+                        
+                        st.markdown("**Original Description:**")
+                        st.write(f'"{attr["description"]}"')
+                        
+                        if attr.get('score_components'):
+                            st.markdown("**Score Components:**")
+                            components = attr['score_components']
+                            for component, score in components.items():
+                                if score > 0:
+                                    component_name = component.replace('_', ' ').title()
+                                    st.write(f"• {component_name}: {score:.1f} points")
             
             with col_b:
                 # Pie chart of suggestions
