@@ -185,8 +185,37 @@ st.markdown("""
 
 .streamlit-expanderContent .stMarkdown,
 .streamlit-expanderContent .stMarkdown p,
-.streamlit-expanderContent .stText {
+.streamlit-expanderContent .stText,
+.streamlit-expanderContent .stTextArea,
+.streamlit-expanderContent .stTextInput {
     color: #2d3748 !important;
+}
+
+/* Text area in expanders - force dark text */
+.streamlit-expanderContent textarea {
+    color: #2d3748 !important;
+    background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
+}
+
+/* All form elements in expanders */
+.streamlit-expanderContent input,
+.streamlit-expanderContent textarea,
+.streamlit-expanderContent select {
+    color: #2d3748 !important;
+    background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
+}
+
+/* Form labels in expanders */
+.streamlit-expanderContent label {
+    color: #2d3748 !important;
+}
+
+/* Placeholder text in expanders */
+.streamlit-expanderContent textarea::placeholder,
+.streamlit-expanderContent input::placeholder {
+    color: #718096 !important;
 }
 
 /* Radio button styling */
@@ -201,6 +230,46 @@ st.markdown("""
     font-weight: 600 !important;
     font-size: 1.1rem !important;
     color: #2d3748 !important;
+}
+
+/* Radio button options text - make darker and more visible */
+.stRadio > div > div > label {
+    color: #1a202c !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+}
+
+.stRadio > div > div > label > div {
+    color: #1a202c !important;
+    font-weight: 600 !important;
+}
+
+/* Radio button input styling */
+.stRadio > div > div > div > input {
+    accent-color: #667eea !important;
+}
+
+/* Radio button container */
+.stRadio > div > div {
+    padding: 0.5rem;
+    margin: 0.3rem 0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.stRadio > div > div:hover {
+    background-color: #f7fafc;
+    border-color: #667eea;
+}
+
+/* Small screen responsive buttons */
+@media (max-width: 768px) {
+    .small-button {
+        font-size: 0.8rem !important;
+        padding: 0.3rem 0.6rem !important;
+        white-space: nowrap !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -740,11 +809,12 @@ def render_quantitative_attribution():
         if st.session_state.contributors:
             st.markdown("**Current Contributors:**")
             for i, contrib in enumerate(st.session_state.contributors):
-                col_a, col_b = st.columns([3, 1])
+                col_a, col_b = st.columns([4, 1])
                 with col_a:
                     st.write(f"• {contrib['display_name']} ({contrib['email']})")
                 with col_b:
-                    if st.button("Remove", key=f"remove_contrib_{i}"):
+                    # Use compact symbol for better responsive design
+                    if st.button("✕", key=f"remove_contrib_{i}", help=f"Remove {contrib['display_name']}"):
                         st.session_state.contributors.pop(i)
                         st.rerun()
     
@@ -880,11 +950,12 @@ def render_qualitative_attribution():
         if st.session_state.contributors:
             st.markdown("**Current Contributors:**")
             for i, contrib in enumerate(st.session_state.contributors):
-                col_a, col_b = st.columns([3, 1])
+                col_a, col_b = st.columns([4, 1])
                 with col_a:
                     st.write(f"• {contrib['display_name']} ({contrib['email']})")
                 with col_b:
-                    if st.button("Remove", key=f"remove_contrib_qual_{i}"):
+                    # Use HTML for better responsive button
+                    if st.button("✕", key=f"remove_contrib_qual_{i}", help=f"Remove {contrib['display_name']}"):
                         st.session_state.contributors.pop(i)
                         st.rerun()
     
