@@ -502,6 +502,23 @@ def render_ip_options_stage():
     """Stage 1: IP Path Finder"""
     st.markdown('<div class="stage-header">IP Path Finder</div>', unsafe_allow_html=True)
     
+    # Stage description
+    st.markdown("""
+    **What is IP Path Finder?**
+    
+    This is your AI-powered intellectual property consultant. Ask questions about protecting your creative work,
+    software, inventions, or business assets. Our RAG (Retrieval-Augmented Generation) system provides expert
+    advice based on UK and international IP law.
+    
+    **What you can ask:**
+    - "How should I protect my software algorithm?"
+    - "Do I need a patent or is copyright enough?"
+    - "What are the risks of open-source licensing?"
+    - "Should I file a trademark for my brand?"
+    
+    **Get personalized recommendations** with citations from legal frameworks and best practices.
+    """)
+    
     # Asset creation
     if not st.session_state.asset_id:
         col1, col2 = st.columns([2, 1])
@@ -616,6 +633,21 @@ def render_ip_options_stage():
 def render_attribution_stage():
     """Stage 2: Contribution Attribution"""
     st.markdown('<div class="stage-header">Contribution Attribution</div>', unsafe_allow_html=True)
+    
+    # Stage description
+    st.markdown("""
+    **What is Contribution Attribution?**
+    
+    This stage analyzes each team member's contributions to determine fair ownership percentages. 
+    We consider different types of work (coding, design, reviews, documentation) and calculate 
+    weighted attribution based on effort, complexity, and time invested.
+    
+    **How it works:**
+    1. Add all contributors who worked on the project
+    2. Log their contribution events with details (hours, complexity, type of work)
+    3. Our AI analyzes the data and calculates fair attribution weights
+    4. View interactive charts showing each person's contribution percentage
+    """)
     
     # Contributors management
     st.markdown("### Contributors")
@@ -759,6 +791,22 @@ def render_ownership_stage():
     """Stage 3: Ownership Arrangement"""
     st.markdown('<div class="stage-header">Ownership Arrangement</div>', unsafe_allow_html=True)
     
+    # Stage description
+    st.markdown("""
+    **What is Ownership Arrangement?**
+    
+    This stage converts contribution analysis into formal ownership structure with legal shares and governance rights.
+    Choose from different ownership policies based on your team's needs and agreements.
+    
+    **Ownership Policies:**
+    - **Equal Split**: All contributors get equal shares regardless of contribution
+    - **Weighted**: Shares proportional to contribution analysis from previous stage
+    - **Funding-Based**: Combines contribution work with financial investment
+    - **Time-Vested**: Shares vest over time with cliff periods
+    
+    **Output**: Formal ownership table with share counts, percentages, and governance rights.
+    """)
+    
     if not st.session_state.attribution_results:
         st.warning("Please complete the Contribution Attribution stage first.")
         return
@@ -840,6 +888,22 @@ def render_ownership_stage():
 def render_contracts_stage():
     """Stage 4: Contract Drafting"""
     st.markdown('<div class="stage-header">Contract Drafting</div>', unsafe_allow_html=True)
+    
+    # Stage description
+    st.markdown("""
+    **What is Contract Drafting?**
+    
+    This stage generates professional legal agreements based on your ownership structure and IP requirements.
+    Our AI-powered contract composer uses Jinja2 templates to create jurisdiction-specific legal documents.
+    
+    **Available Contract Types:**
+    - **NDA (Non-Disclosure Agreement)**: Protect confidential information during discussions
+    - **IP Assignment Agreement**: Formally assign intellectual property rights among contributors
+    - **Joint Development Agreement (JDA)**: Structure collaborative development projects
+    - **Revenue Sharing Addendum**: Define how profits will be distributed
+    
+    **Features**: Editable contracts, downloadable documents, and placeholder signing integration.
+    """)
     
     if not st.session_state.ownership_arrangement:
         st.warning("Please complete the Ownership Arrangement stage first.")
@@ -935,6 +999,22 @@ def render_licensing_stage():
     """Stage 5: License & Summary"""
     st.markdown('<div class="stage-header">License & Summary</div>', unsafe_allow_html=True)
     
+    # Stage description
+    st.markdown("""
+    **What is License & Summary?**
+    
+    This final stage recommends appropriate licenses for your intellectual property based on your ownership structure,
+    intended use, and dependency requirements. Our license engine analyzes compatibility and provides comprehensive guidance.
+    
+    **License Analysis Includes:**
+    - **Compatibility Scoring**: How well each license fits your project
+    - **Dependency Checking**: Ensures compatibility with existing licenses
+    - **Usage Terms**: Clear explanation of permissions and restrictions
+    - **Obligations**: What you must do to comply with the license
+    
+    **Popular Licenses**: MIT, Apache 2.0, GPL, BSD, Creative Commons, and Proprietary options.
+    """)
+    
     if not st.session_state.ownership_arrangement:
         st.warning("Please complete the Ownership Arrangement stage first.")
         return
@@ -1022,7 +1102,26 @@ def render_licensing_stage():
 def render_general_chat():
     """Render general IP advice chat section"""
     st.markdown('<div class="stage-header">General IP Advice</div>', unsafe_allow_html=True)
-    st.markdown("Ask any questions about intellectual property law, strategy, or best practices.")
+    
+    # Section description
+    st.markdown("""
+    **Your Personal IP Consultant**
+    
+    Get expert advice on any intellectual property topic without going through the structured pipeline.
+    This is perfect for general questions, exploring IP concepts, or getting quick guidance.
+    
+    **Ask about:**
+    - Patent vs. Trade Secret strategies
+    - Copyright and licensing best practices  
+    - Trademark registration and protection
+    - IP valuation and commercialization
+    - International IP protection strategies
+    - Open source vs. proprietary licensing
+    
+    **Powered by our RAG system** with comprehensive IP law knowledge base.
+    """)
+    
+    st.markdown("---")
     
     # Initialize general chat messages
     if "general_messages" not in st.session_state:
