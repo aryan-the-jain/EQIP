@@ -795,6 +795,13 @@ def render_ownership_stage():
             }[x],
             key="policy_type_select"
         )
+        
+        # Clear cached results when policy changes
+        if "last_policy_type" not in st.session_state:
+            st.session_state.last_policy_type = policy_type
+        elif st.session_state.last_policy_type != policy_type:
+            st.session_state.ownership_arrangement = None
+            st.session_state.last_policy_type = policy_type
     
     with col2:
         total_shares = st.number_input("Total Shares", min_value=1000, value=1000000, step=1000)
@@ -803,43 +810,88 @@ def render_ownership_stage():
     policy_params = {"total_shares": total_shares}
     
     if policy_type == "funding_based":
-        st.markdown("**Funding Information:**")
+        st.markdown("### Funding Details")
+        st.info("Enter the funding amount contributed by each contributor. Leave blank or 0 for contributors who only provided sweat equity.")
+        
         funding_data = {}
-        for contrib in st.session_state.contributors:
+        for attribution in st.session_state.attribution_results["attributions"]:
+            contributor_email = attribution["contributor_email"]
+            contributor_name = attribution["contributor_name"]
+            
             funding_amount = st.number_input(
-                f"Funding from {contrib['display_name']} ($)",
+                f"Funding by {contributor_name} ({contributor_email})",
                 min_value=0.0,
                 value=0.0,
-                key=f"funding_{contrib['email']}"
+                step=1000.0,
+                format="%.2f",
+                key=f"funding_{contributor_email}"
             )
-            if funding_amount > 0:
-                funding_data[contrib["email"]] = funding_amount
+            funding_data[contributor_email] = funding_amount
         
-        policy_params["funding"] = funding_data
-        policy_params["sweat_equity_weight"] = st.slider(
-            "Sweat Equity Weight", 0.0, 1.0, 0.3, 0.1,
-            help="Proportion of ownership based on contributions vs funding"
+        funding_priority = st.radio(
+            "Funding Priority",
+            ["Funding Primary", "Balanced", "Contribution Primary"],
+            index=1,
+            help="Choose how to balance funding vs contribution"
         )
+        
+        if funding_priority == "Funding Primary":
+            sweat_equity_weight = 0.1  # 10% contribution, 90% funding
+        elif funding_priority == "Balanced":
+            sweat_equity_weight = 0.3  # 30% contribution, 70% funding  
+        else:  # Contribution Primary
+            sweat_equity_weight = 0.7  # 70% contribution, 30% funding
+        
+        policy_params.update({
+            "funding": funding_data,
+            "sweat_equity_weight": sweat_equity_weight
+        })
     
     elif policy_type == "time_vested":
-        st.markdown("**Vesting Parameters:**")
-        policy_params["vesting_period_months"] = st.number_input(
-            "Vesting Period (months)", min_value=12, value=48, step=6
-        )
-        policy_params["cliff_months"] = st.number_input(
-            "Cliff Period (months)", min_value=0, value=12, step=3
-        )
+        st.markdown("### Vesting Schedule")
         
-        # Time data for each contributor
-        time_data = {}
-        for contrib in st.session_state.contributors:
-            months = st.number_input(
-                f"Months contributed - {contrib['display_name']}",
-                min_value=0, value=12, step=1,
-                key=f"time_{contrib['email']}"
+        col_vest1, col_vest2 = st.columns(2)
+        with col_vest1:
+            vesting_period_months = st.number_input(
+                "Total Vesting Period (months)",
+                min_value=12,
+                max_value=120,
+                value=48,
+                step=6,
+                help="Total time for shares to fully vest (typically 48 months / 4 years)"
             )
-            time_data[contrib["email"]] = months
-        policy_params["time_data"] = time_data
+        
+        with col_vest2:
+            cliff_months = st.number_input(
+                "Cliff Period (months)",
+                min_value=0,
+                max_value=24,
+                value=12,
+                step=3,
+                help="Initial period before any shares vest (typically 12 months)"
+            )
+        
+        st.markdown("#### Time Contributed by Each Contributor")
+        time_data = {}
+        for attribution in st.session_state.attribution_results["attributions"]:
+            contributor_email = attribution["contributor_email"]
+            contributor_name = attribution["contributor_name"]
+            
+            months_contributed = st.number_input(
+                f"Months contributed by {contributor_name} ({contributor_email})",
+                min_value=0,
+                max_value=vesting_period_months,
+                value=12,
+                step=1,
+                key=f"time_{contributor_email}"
+            )
+            time_data[contributor_email] = months_contributed
+        
+        policy_params.update({
+            "vesting_period_months": vesting_period_months,
+            "cliff_months": cliff_months,
+            "time_data": time_data
+        })
     
     # Generate ownership arrangement
     if st.button("Finalize Ownership Arrangement", key="finalize_ownership"):
@@ -857,6 +909,7 @@ def render_ownership_stage():
                 
                 if response:
                     st.session_state.ownership_arrangement = response
+                    st.session_state.ownership_total_shares_input = total_shares
                     st.success("Ownership arrangement finalized!")
                     st.rerun()
             
@@ -883,6 +936,10 @@ def render_ownership_stage():
         df = pd.DataFrame(ownership_data)
         st.dataframe(df, use_container_width=True)
         
+        # Display total shares actually used vs input
+        input_shares = st.session_state.get('ownership_total_shares_input', 'Unknown')
+        st.info(f"**Total Shares Used:** {arrangement['total_shares']:,} | **Total Shares Input:** {input_shares:,} | **Policy Applied:** {arrangement['policy_applied']}")
+        
         # Visualization
         names = [share["contributor_name"] for share in arrangement["ownership_table"]]
         percentages = [share["percentage"] for share in arrangement["ownership_table"]]
@@ -898,7 +955,6 @@ def render_ownership_stage():
         
         # Governance summary
         st.info(f"**Governance:** {arrangement['governance_summary']}")
-        st.success(f"**Policy Applied:** {arrangement['policy_applied']}")
 
 def render_contracts_stage():
     """Stage 4: Contract Drafting"""
