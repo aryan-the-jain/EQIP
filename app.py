@@ -141,11 +141,46 @@ st.markdown("""
     color: #2d3748 !important;
 }
 
-/* Chat input */
+/* Chat input - sticky at bottom */
+.stChatInput {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 100 !important;
+    margin-top: 1rem !important;
+    padding: 0.5rem 0 !important;
+    background-color: #1a202c !important;
+    border-top: 1px solid #2d3748 !important;
+}
+
 .stChatInput input {
     color: #2d3748 !important;
     background-color: #ffffff !important;
     caret-color: #2d3748 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.stChatInput textarea {
+    color: #2d3748 !important;
+    background-color: #ffffff !important;
+    caret-color: #2d3748 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Chat input placeholder */
+.stChatInput input::placeholder {
+    color: #a0aec0 !important;
+}
+
+/* Add padding to bottom of main container to prevent overlap */
+.main .block-container {
+    padding-bottom: 6rem !important;
+}
+
+/* Ensure chat messages have proper spacing */
+.stChatMessage {
+    margin-bottom: 1rem !important;
 }
 
 /* Button styling */
@@ -1058,16 +1093,8 @@ def render_ip_options_stage():
     
     # Chat interface
     if st.session_state.asset_id:
-        st.markdown("### IP Consultation")
-        
-        # Display chat history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-        
-        # Quick action buttons
+        # Quick action buttons at the top (if available)
         if st.session_state.pipeline_data.get("ip_options") and st.session_state.messages:
-            st.markdown("---")
             st.markdown("### Quick Actions")
             col_a, col_b, col_c = st.columns(3)
             
@@ -1091,7 +1118,14 @@ def render_ip_options_stage():
             
             st.markdown("---")
         
-        # Chat input
+        st.markdown("### IP Consultation")
+        
+        # Display chat history
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+        
+        # Chat input at the bottom
         if prompt := st.chat_input("Ask about IP protection options..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             
@@ -2181,7 +2215,7 @@ def render_general_chat():
         with st.chat_message(message["role"]):
             st.write(message["content"])
     
-    # Chat input
+    # Chat input at the bottom
     if prompt := st.chat_input("Ask about IP law, strategy, patents, trademarks, licensing..."):
         st.session_state.general_messages.append({"role": "user", "content": prompt})
         
