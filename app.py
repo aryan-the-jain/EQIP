@@ -478,30 +478,172 @@ async def call_api_async_demo(endpoint: str, method: str = "POST", data: dict = 
         return {"asset_id": 12345}
     
     elif "/v1/agents/ip-options" in endpoint:
-        return {
-            "options": [
-                "Copyright Protection: Automatic protection for creative works in the UK",
-                "Trademark Protection: Consider registering distinctive brand elements",
-                "Design Rights: Protect visual appearance and configuration",
-                "Trade Secret Protection: Maintain confidentiality for proprietary processes"
-            ],
-            "risks": [
-                "Public disclosure may limit future patent options",
-                "Infringement monitoring required for enforcement",
-                "International protection requires separate registrations"
-            ],
-            "next_steps": [
-                "Document creation and ownership details",
-                "Consider formal IP registration where applicable",
-                "Implement IP protection policies",
-                "Consult with IP attorney for complex cases"
-            ],
-            "citations": [
-                "UK Intellectual Property Framework - gov.uk/ip-guidance",
-                "Copyright, Designs and Patents Act 1988",
-                "UK Trade Marks Act 1994"
-            ]
-        }
+        # Get the user's question to provide more relevant responses
+        question = data.get("questions", "").lower()
+        
+        # Provide different responses based on question content
+        if any(word in question for word in ["patent", "invention", "algorithm", "technical", "innovation"]):
+            return {
+                "options": [
+                    "Patent Protection: File a patent application for novel technical inventions",
+                    "Provisional Patent: Lower-cost initial filing to establish priority date",
+                    "Trade Secret Protection: Keep technical details confidential if not patentable",
+                    "Defensive Publications: Prevent others from patenting your disclosed invention"
+                ],
+                "risks": [
+                    "Patent applications are expensive and time-consuming",
+                    "Public disclosure through patent may help competitors",
+                    "Patent protection is limited to 20 years from filing date",
+                    "International filing required for global protection"
+                ],
+                "next_steps": [
+                    "Conduct prior art search to assess patentability",
+                    "Document invention details and development timeline",
+                    "Consider provisional patent filing for early protection",
+                    "Consult with patent attorney for professional assessment"
+                ],
+                "citations": [
+                    "UK Patents Act 1977",
+                    "European Patent Convention (EPC)",
+                    "UKIPO Patent Practice Manual"
+                ]
+            }
+        
+        elif any(word in question for word in ["trademark", "brand", "logo", "name", "mark"]):
+            return {
+                "options": [
+                    "Trademark Registration: Register distinctive brand elements with UKIPO",
+                    "Unregistered Rights: Common law protection through use in trade",
+                    "EU Trademark: Broader protection across European Union",
+                    "Madrid Protocol: International trademark registration system"
+                ],
+                "risks": [
+                    "Unregistered marks have limited protection scope",
+                    "Similar existing marks may block registration",
+                    "Trademark rights require active use and enforcement",
+                    "Generic or descriptive terms cannot be trademarked"
+                ],
+                "next_steps": [
+                    "Search existing trademarks for conflicts",
+                    "Define goods/services for trademark classification",
+                    "File trademark application with UKIPO",
+                    "Monitor for potential infringement and enforce rights"
+                ],
+                "citations": [
+                    "UK Trade Marks Act 1994",
+                    "EU Trademark Regulation 2017/1001",
+                    "UKIPO Trademark Practice Manual"
+                ]
+            }
+        
+        elif any(word in question for word in ["software", "code", "app", "program", "digital"]):
+            return {
+                "options": [
+                    "Copyright Protection: Automatic protection for original software code",
+                    "Software Patents: Protect novel technical aspects if applicable",
+                    "Open Source Licensing: Choose appropriate license for public code",
+                    "Trade Secret Protection: Keep proprietary algorithms confidential"
+                ],
+                "risks": [
+                    "Copyright doesn't protect ideas, only expression",
+                    "Software patents face higher scrutiny and costs",
+                    "Open source licensing may limit commercialization",
+                    "Reverse engineering may expose trade secrets"
+                ],
+                "next_steps": [
+                    "Document code authorship and development timeline",
+                    "Choose appropriate software license terms",
+                    "Consider patent protection for novel algorithms",
+                    "Implement code security and access controls"
+                ],
+                "citations": [
+                    "Copyright, Designs and Patents Act 1988",
+                    "Computer Programs Directive 2009/24/EC",
+                    "UK Software Patent Guidelines"
+                ]
+            }
+        
+        elif any(word in question for word in ["design", "appearance", "visual", "aesthetic", "look"]):
+            return {
+                "options": [
+                    "Registered Design Rights: Protect visual appearance of products",
+                    "Unregistered Design Rights: Automatic protection for original designs",
+                    "Community Design Rights: EU-wide design protection",
+                    "Copyright Protection: May apply to artistic aspects of designs"
+                ],
+                "risks": [
+                    "Design rights have shorter protection periods than patents",
+                    "Functional aspects may not qualify for design protection",
+                    "Similar existing designs may limit protection scope",
+                    "Design registration requires novelty and individual character"
+                ],
+                "next_steps": [
+                    "Document design development and creation dates",
+                    "Search existing registered designs for conflicts",
+                    "File design registration applications promptly",
+                    "Consider multiple jurisdictions for broader protection"
+                ],
+                "citations": [
+                    "Registered Designs Act 1949",
+                    "Community Design Regulation 6/2002",
+                    "UKIPO Design Practice Manual"
+                ]
+            }
+        
+        elif any(word in question for word in ["license", "licensing", "commercialize", "revenue", "monetize"]):
+            return {
+                "options": [
+                    "Exclusive Licensing: Grant sole rights to specific licensees",
+                    "Non-exclusive Licensing: License to multiple parties simultaneously",
+                    "Royalty Structures: Percentage-based or fixed-fee licensing models",
+                    "Cross-licensing: Exchange IP rights with other parties"
+                ],
+                "risks": [
+                    "Licensing agreements require careful legal drafting",
+                    "Exclusive licenses may limit future opportunities",
+                    "Royalty collection and enforcement can be challenging",
+                    "International licensing involves complex legal frameworks"
+                ],
+                "next_steps": [
+                    "Identify potential licensees and market opportunities",
+                    "Develop licensing strategy and pricing models",
+                    "Draft comprehensive licensing agreements",
+                    "Establish monitoring and enforcement procedures"
+                ],
+                "citations": [
+                    "UK Licensing Law and Practice",
+                    "Technology Transfer Guidelines",
+                    "International Licensing Best Practices"
+                ]
+            }
+        
+        else:
+            # Default general response for other questions
+            return {
+                "options": [
+                    "Copyright Protection: Automatic protection for creative works in the UK",
+                    "Trademark Protection: Consider registering distinctive brand elements",
+                    "Design Rights: Protect visual appearance and configuration",
+                    "Patent Protection: For novel technical inventions and processes"
+                ],
+                "risks": [
+                    "Different IP rights have varying protection scopes and durations",
+                    "Public disclosure may limit future patent options",
+                    "International protection requires separate registrations",
+                    "IP enforcement requires active monitoring and legal action"
+                ],
+                "next_steps": [
+                    "Identify which type of IP protection best fits your asset",
+                    "Document creation and ownership details thoroughly",
+                    "Consider formal IP registration where applicable",
+                    "Consult with IP attorney for complex cases"
+                ],
+                "citations": [
+                    "UK Intellectual Property Framework - gov.uk/ip-guidance",
+                    "Copyright, Designs and Patents Act 1988",
+                    "UK Trade Marks Act 1994"
+                ]
+            }
     
     elif "/v1/agents/attribution/run" in endpoint:
         contributors = data.get("contributors", [])
