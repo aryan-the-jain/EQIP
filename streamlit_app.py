@@ -21,19 +21,34 @@ import pandas as pd
 API_BASE = st.secrets.get("API_BASE", "http://localhost:8000")
 DEMO_MODE = st.secrets.get("DEMO_MODE", "true").lower() == "true"
 
-# Page configuration
-st.set_page_config(
-    page_title="Eqip.ai - Complete IP Pipeline", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Import the enhanced app functionality
+# Import the enhanced app functionality first
 try:
     # Try to import from the enhanced app
     import sys
     sys.path.append('frontend')
-    from streamlit_app_enhanced import *
+    
+    # Import everything except the page config
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("streamlit_app_enhanced", "frontend/streamlit_app_enhanced.py")
+    enhanced_module = importlib.util.module_from_spec(spec)
+    
+    # Set page config before importing
+    st.set_page_config(
+        page_title="Eqip.ai - Complete IP Pipeline", 
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Now execute the module
+    spec.loader.exec_module(enhanced_module)
+    
+    # Import all functions we need
+    from frontend.streamlit_app_enhanced import (
+        initialize_session_state, render_progress_bar, render_stage_overview,
+        render_ip_options_stage, render_attribution_stage, render_ownership_stage,
+        render_contracts_stage, render_licensing_stage, render_general_chat,
+        call_api_async
+    )
     
     # Override API calls for demo mode
     if DEMO_MODE:
