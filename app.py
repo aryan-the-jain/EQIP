@@ -563,20 +563,131 @@ async def call_api_async_demo(endpoint: str, method: str = "POST", data: dict = 
     
     elif "/v1/agents/allocation/finalize" in endpoint:
         attributions = data.get("attribution_weights", [])
-        return {
-            "asset_id": data.get("asset_id", 12345),
-            "ownership_table": [
-                {
+        policy_type = data.get("policy_type", "weighted")
+        policy_params = data.get("policy_params", {})
+        total_shares = policy_params.get("total_shares", 1000000)
+        
+        ownership_table = []
+        
+        if policy_type == "equal":
+            # Equal split - ignore attribution weights
+            shares_per_contributor = total_shares // len(attributions)
+            remaining_shares = total_shares % len(attributions)
+            
+            for i, attr in enumerate(attributions):
+                shares = shares_per_contributor + (1 if i < remaining_shares else 0)
+                percentage = (shares / total_shares) * 100
+                ownership_table.append({
                     "contributor_email": attr["contributor_email"],
                     "contributor_name": attr["contributor_name"],
-                    "shares": int(attr["weight"] * 1000000),
-                    "percentage": attr["weight"] * 100,
-                    "governance_rights": "majority" if attr["weight"] > 0.5 else "standard"
-                } for attr in attributions
-            ],
-            "total_shares": 1000000,
-            "governance_summary": f"Demo ownership structure with {len(attributions)} contributors using {data.get('policy_type', 'weighted')} policy",
-            "policy_applied": data.get("policy_type", "weighted")
+                    "shares": shares,
+                    "percentage": percentage,
+                    "governance_rights": "equal"
+                })
+        
+        elif policy_type == "funding_based":
+            # Funding-based calculation
+            funding_data = policy_params.get("funding", {})
+            sweat_equity_weight = policy_params.get("sweat_equity_weight", 0.3)
+            
+            if funding_data and sum(funding_data.values()) > 0:
+                total_funding = sum(funding_data.values())
+                
+                for attr in attributions:
+                    # Sweat equity component
+                    sweat_equity_share = attr["weight"] * sweat_equity_weight
+                    
+                    # Funding component
+                    funding_amount = funding_data.get(attr["contributor_email"], 0)
+                    funding_share = (funding_amount / total_funding) * (1 - sweat_equity_weight) if total_funding > 0 else 0
+                    
+                    # Combined ownership
+                    total_ownership = sweat_equity_share + funding_share
+                    shares = int(total_ownership * total_shares)
+                    percentage = total_ownership * 100
+                    
+                    governance_rights = "majority" if percentage >= 50 else ("investor" if funding_amount > 0 else "standard")
+                    
+                    ownership_table.append({
+                        "contributor_email": attr["contributor_email"],
+                        "contributor_name": attr["contributor_name"],
+                        "shares": shares,
+                        "percentage": percentage,
+                        "governance_rights": governance_rights
+                    })
+            else:
+                # Fallback to weighted if no funding data
+                policy_type = "weighted"
+        
+        elif policy_type == "time_vested":
+            # Time-vested calculation
+            vesting_period_months = policy_params.get("vesting_period_months", 48)
+            cliff_months = policy_params.get("cliff_months", 12)
+            time_data = policy_params.get("time_data", {})
+            
+            for attr in attributions:
+                months_contributed = time_data.get(attr["contributor_email"], 12)
+                
+                # Calculate vesting percentage
+                if months_contributed < cliff_months:
+                    vested_percentage = 0.0
+                else:
+                    vested_percentage = min(months_contributed / vesting_period_months, 1.0)
+                
+                # Apply vesting to base ownership
+                base_ownership = attr["weight"]
+                vested_ownership = base_ownership * vested_percentage
+                
+                shares = int(vested_ownership * total_shares)
+                percentage = vested_ownership * 100
+                
+                if vested_percentage == 1.0:
+                    governance_rights = "fully_vested"
+                elif vested_percentage > 0.5:
+                    governance_rights = "partially_vested"
+                elif vested_percentage > 0:
+                    governance_rights = "cliff_vested"
+                else:
+                    governance_rights = "unvested"
+                
+                ownership_table.append({
+                    "contributor_email": attr["contributor_email"],
+                    "contributor_name": attr["contributor_name"],
+                    "shares": shares,
+                    "percentage": percentage,
+                    "governance_rights": governance_rights
+                })
+        
+        if policy_type == "weighted" or not ownership_table:
+            # Weighted distribution (default)
+            for attr in attributions:
+                shares = int(attr["weight"] * total_shares)
+                percentage = attr["weight"] * 100
+                governance_rights = "majority" if percentage >= 50 else ("significant" if percentage >= 25 else "standard")
+                
+                ownership_table.append({
+                    "contributor_email": attr["contributor_email"],
+                    "contributor_name": attr["contributor_name"],
+                    "shares": shares,
+                    "percentage": percentage,
+                    "governance_rights": governance_rights
+                })
+        
+        # Ensure shares add up correctly
+        actual_total_shares = sum(share["shares"] for share in ownership_table)
+        if actual_total_shares != total_shares and ownership_table:
+            # Adjust the largest holder's shares to match total
+            largest_holder = max(ownership_table, key=lambda x: x["shares"])
+            adjustment = total_shares - actual_total_shares
+            largest_holder["shares"] += adjustment
+            largest_holder["percentage"] = (largest_holder["shares"] / total_shares) * 100
+        
+        return {
+            "asset_id": data.get("asset_id", 12345),
+            "ownership_table": ownership_table,
+            "total_shares": total_shares,
+            "governance_summary": f"Demo ownership structure with {len(attributions)} contributors using {policy_type} policy",
+            "policy_applied": policy_type
         }
     
     elif "/v1/agreements/generate" in endpoint:
