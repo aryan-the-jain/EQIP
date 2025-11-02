@@ -1449,6 +1449,88 @@ def render_ownership_stage():
     with col2:
         total_shares = st.number_input("Total Shares", min_value=1000, value=1000000, step=1000)
     
+    # Policy-specific parameters
+    policy_params = {"total_shares": total_shares}
+    
+    if policy_type == "funding_based":
+        st.markdown("### Funding Details")
+        st.info("Enter the funding amount contributed by each contributor. Leave blank or 0 for contributors who only provided sweat equity.")
+        
+        funding_data = {}
+        for attribution in st.session_state.attribution_results["attributions"]:
+            contributor_email = attribution["contributor_email"]
+            contributor_name = attribution["contributor_name"]
+            
+            funding_amount = st.number_input(
+                f"Funding by {contributor_name} ({contributor_email})",
+                min_value=0.0,
+                value=0.0,
+                step=1000.0,
+                format="%.2f",
+                key=f"funding_{contributor_email}"
+            )
+            funding_data[contributor_email] = funding_amount
+        
+        sweat_equity_weight = st.slider(
+            "Sweat Equity Weight",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.3,
+            step=0.1,
+            help="What percentage of ownership should be based on contribution vs funding? 0.3 means 30% based on contribution, 70% on funding."
+        )
+        
+        policy_params.update({
+            "funding": funding_data,
+            "sweat_equity_weight": sweat_equity_weight
+        })
+    
+    elif policy_type == "time_vested":
+        st.markdown("### Vesting Schedule")
+        
+        col_vest1, col_vest2 = st.columns(2)
+        with col_vest1:
+            vesting_period_months = st.number_input(
+                "Total Vesting Period (months)",
+                min_value=12,
+                max_value=120,
+                value=48,
+                step=6,
+                help="Total time for shares to fully vest (typically 48 months / 4 years)"
+            )
+        
+        with col_vest2:
+            cliff_months = st.number_input(
+                "Cliff Period (months)",
+                min_value=0,
+                max_value=24,
+                value=12,
+                step=3,
+                help="Initial period before any shares vest (typically 12 months)"
+            )
+        
+        st.markdown("#### Time Contributed by Each Contributor")
+        time_data = {}
+        for attribution in st.session_state.attribution_results["attributions"]:
+            contributor_email = attribution["contributor_email"]
+            contributor_name = attribution["contributor_name"]
+            
+            months_contributed = st.number_input(
+                f"Months contributed by {contributor_name} ({contributor_email})",
+                min_value=0,
+                max_value=vesting_period_months,
+                value=12,
+                step=1,
+                key=f"time_{contributor_email}"
+            )
+            time_data[contributor_email] = months_contributed
+        
+        policy_params.update({
+            "vesting_period_months": vesting_period_months,
+            "cliff_months": cliff_months,
+            "time_data": time_data
+        })
+    
     # Generate ownership arrangement
     if st.button("Finalize Ownership Arrangement", key="finalize_ownership"):
         with st.spinner("Calculating ownership arrangement..."):
@@ -1458,7 +1540,7 @@ def render_ownership_stage():
                     "asset_id": st.session_state.asset_id,
                     "attribution_weights": st.session_state.attribution_results["attributions"],
                     "policy_type": policy_type,
-                    "policy_params": {"total_shares": total_shares}
+                    "policy_params": policy_params
                 }
             ))
             
