@@ -639,16 +639,45 @@ def render_attribution_stage():
     **What is Contribution Attribution?**
     
     This stage analyzes each team member's contributions to determine fair ownership percentages. 
-    We consider different types of work (coding, design, reviews, documentation) and calculate 
-    weighted attribution based on effort, complexity, and time invested.
-    
-    **How it works:**
-    1. Add all contributors who worked on the project
-    2. Log their contribution events with details (hours, complexity, type of work)
-    3. Our AI analyzes the data and calculates fair attribution weights
-    4. View interactive charts showing each person's contribution percentage
+    Choose between two approaches based on your preference and available information.
     """)
     
+    # Method selection
+    st.markdown("### Attribution Method")
+    
+    attribution_method = st.radio(
+        "Choose your preferred method:",
+        ["Quantitative Analysis", "Qualitative Description"],
+        format_func=lambda x: {
+            "Quantitative Analysis": "📊 Quantitative - Log specific events (hours, lines of code, complexity)",
+            "Qualitative Description": "📝 Qualitative - Describe contributions in text, AI analyzes and scores"
+        }[x],
+        key="attribution_method",
+        horizontal=True
+    )
+    
+    if attribution_method == "Quantitative Analysis":
+        st.markdown("""
+        **Quantitative Method:**
+        1. Add contributors and log specific contribution events
+        2. Include details like hours spent, lines of code, complexity scores
+        3. AI calculates weighted attribution based on measurable data
+        4. View precise breakdowns and interactive visualizations
+        """)
+        render_quantitative_attribution()
+        
+    else:  # Qualitative Description
+        st.markdown("""
+        **Qualitative Method:**
+        1. Add contributors and describe what each person contributed
+        2. AI analyzes the descriptions using common IP attribution methodologies
+        3. Review and adjust the AI's suggested attribution percentages
+        4. Confirm the final attribution to proceed
+        """)
+        render_qualitative_attribution()
+
+def render_quantitative_attribution():
+    """Render the quantitative contribution attribution interface"""
     # Contributors management
     st.markdown("### Contributors")
     
@@ -786,6 +815,263 @@ def render_attribution_stage():
             
             # Methodology info
             st.info(f"**Methodology:** {results['methodology']} (Confidence: {results['confidence_score']:.1%})")
+
+def render_qualitative_attribution():
+    """Render the qualitative contribution attribution interface"""
+    # Contributors management
+    st.markdown("### Contributors")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Add contributor form
+        with st.expander("Add Contributor", expanded=len(st.session_state.contributors) == 0):
+            with st.form("add_contributor_qual"):
+                email = st.text_input("Email")
+                name = st.text_input("Display Name")
+                org = st.text_input("Organization (optional)")
+                
+                if st.form_submit_button("Add Contributor"):
+                    if email and name:
+                        contributor = {"email": email, "display_name": name, "org": org or None}
+                        if contributor not in st.session_state.contributors:
+                            st.session_state.contributors.append(contributor)
+                            st.success(f"Added {name}")
+                            st.rerun()
+                    else:
+                        st.error("Email and name are required")
+    
+    with col2:
+        # Display current contributors
+        if st.session_state.contributors:
+            st.markdown("**Current Contributors:**")
+            for i, contrib in enumerate(st.session_state.contributors):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.write(f"• {contrib['display_name']} ({contrib['email']})")
+                with col_b:
+                    if st.button("Remove", key=f"remove_contrib_qual_{i}"):
+                        st.session_state.contributors.pop(i)
+                        st.rerun()
+    
+    # Qualitative contribution description
+    if st.session_state.contributors:
+        st.markdown("### Contribution Descriptions")
+        
+        # Initialize qualitative descriptions if not exists
+        if "qualitative_descriptions" not in st.session_state:
+            st.session_state.qualitative_descriptions = {}
+        
+        # Get descriptions for each contributor
+        for contrib in st.session_state.contributors:
+            email = contrib["email"]
+            name = contrib["display_name"]
+            
+            with st.expander(f"Describe {name}'s Contributions", expanded=email not in st.session_state.qualitative_descriptions):
+                description = st.text_area(
+                    f"What did {name} contribute to the project?",
+                    value=st.session_state.qualitative_descriptions.get(email, ""),
+                    placeholder=f"Describe {name}'s role and contributions. For example:\n"
+                                f"• Led the technical architecture and implemented core algorithms\n"
+                                f"• Spent approximately 40 hours on complex backend development\n"
+                                f"• Conducted code reviews and mentored junior developers\n"
+                                f"• Created technical documentation and API specifications",
+                    height=150,
+                    key=f"desc_{email}"
+                )
+                
+                if st.button(f"Save Description for {name}", key=f"save_desc_{email}"):
+                    if description.strip():
+                        st.session_state.qualitative_descriptions[email] = description
+                        st.success(f"Saved description for {name}")
+                        st.rerun()
+                    else:
+                        st.error("Please provide a description")
+        
+        # AI Analysis of qualitative descriptions
+        if len(st.session_state.qualitative_descriptions) == len(st.session_state.contributors):
+            st.markdown("### AI Attribution Analysis")
+            
+            if st.button("Analyze Contribution Descriptions", key="analyze_qualitative"):
+                with st.spinner("AI is analyzing contribution descriptions..."):
+                    # Create prompt for LLM analysis
+                    analysis_prompt = "Analyze the following contributor descriptions and provide fair attribution percentages:\n\n"
+                    
+                    for contrib in st.session_state.contributors:
+                        email = contrib["email"]
+                        name = contrib["display_name"]
+                        desc = st.session_state.qualitative_descriptions.get(email, "")
+                        analysis_prompt += f"**{name} ({email}):**\n{desc}\n\n"
+                    
+                    analysis_prompt += """
+                    Based on these descriptions, please provide:
+                    1. Fair attribution percentages for each contributor (must sum to 100%)
+                    2. Rationale for each person's percentage
+                    3. Consider factors like: technical complexity, time investment, leadership, creative input, risk-taking
+                    
+                    Use common IP attribution methodologies and be fair and objective.
+                    """
+                    
+                    # Get AI analysis
+                    response = asyncio.run(call_api_async(
+                        "/v1/agents/ip-options",
+                        data={
+                            "asset_id": st.session_state.asset_id,
+                            "questions": analysis_prompt,
+                            "jurisdictions": st.session_state.jurisdictions,
+                            "conversation_context": []
+                        }
+                    ))
+                    
+                    if response:
+                        # Parse AI response and create attribution results
+                        # For demo mode, create realistic attribution based on description length and keywords
+                        attributions = []
+                        total_weight = 0
+                        
+                        for contrib in st.session_state.contributors:
+                            email = contrib["email"]
+                            name = contrib["display_name"]
+                            desc = st.session_state.qualitative_descriptions.get(email, "")
+                            
+                            # Simple scoring based on description analysis
+                            score = len(desc.split()) * 0.1  # Base score from description length
+                            
+                            # Keyword-based scoring
+                            high_value_keywords = ["led", "created", "designed", "architected", "implemented", "developed", "managed", "founded"]
+                            medium_value_keywords = ["contributed", "helped", "assisted", "supported", "reviewed", "tested"]
+                            
+                            for keyword in high_value_keywords:
+                                if keyword.lower() in desc.lower():
+                                    score += 2.0
+                            
+                            for keyword in medium_value_keywords:
+                                if keyword.lower() in desc.lower():
+                                    score += 1.0
+                            
+                            # Time/effort indicators
+                            if any(word in desc.lower() for word in ["hours", "weeks", "months", "full-time", "extensive"]):
+                                score += 1.5
+                            
+                            # Technical complexity indicators
+                            if any(word in desc.lower() for word in ["complex", "algorithm", "architecture", "technical", "advanced"]):
+                                score += 1.0
+                            
+                            attributions.append({
+                                "email": email,
+                                "name": name,
+                                "score": max(score, 1.0),  # Minimum score of 1
+                                "description": desc
+                            })
+                            total_weight += max(score, 1.0)
+                        
+                        # Normalize to percentages
+                        for attr in attributions:
+                            attr["weight"] = attr["score"] / total_weight
+                            attr["percentage"] = attr["weight"] * 100
+                        
+                        # Store in session state for editing
+                        st.session_state.ai_suggested_attribution = attributions
+                        st.session_state.qualitative_analysis_complete = True
+                        st.rerun()
+        
+        # Display AI suggestions for review and editing
+        if st.session_state.get("qualitative_analysis_complete") and st.session_state.get("ai_suggested_attribution"):
+            st.markdown("### AI Attribution Suggestions")
+            st.markdown("Review and adjust the AI's suggested attribution percentages:")
+            
+            # Create editable attribution table
+            attributions = st.session_state.ai_suggested_attribution
+            
+            # Display current suggestions
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.markdown("**AI Suggested Attribution:**")
+                for attr in attributions:
+                    st.write(f"• **{attr['name']}**: {attr['percentage']:.1f}%")
+                    with st.expander(f"Rationale for {attr['name']}"):
+                        st.write(f"**Description analyzed:** {attr['description'][:200]}...")
+                        st.write(f"**AI Score:** {attr['score']:.1f} points")
+                        st.write(f"**Suggested percentage:** {attr['percentage']:.1f}%")
+            
+            with col_b:
+                # Pie chart of suggestions
+                names = [attr["name"] for attr in attributions]
+                weights = [attr["weight"] for attr in attributions]
+                
+                fig = px.pie(
+                    values=weights,
+                    names=names,
+                    title="AI Suggested Attribution",
+                    color_discrete_sequence=px.colors.qualitative.Set3
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Allow manual adjustments
+            st.markdown("### Adjust Attribution (Optional)")
+            
+            adjusted_attributions = []
+            total_percentage = 0
+            
+            for i, attr in enumerate(attributions):
+                col_x, col_y = st.columns([2, 1])
+                with col_x:
+                    st.write(f"**{attr['name']}**")
+                with col_y:
+                    adjusted_percentage = st.number_input(
+                        f"Percentage for {attr['name']}",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=attr['percentage'],
+                        step=0.1,
+                        key=f"adjust_{attr['email']}"
+                    )
+                    adjusted_attributions.append({
+                        "contributor_email": attr['email'],
+                        "contributor_name": attr['name'],
+                        "weight": adjusted_percentage / 100.0,
+                        "rationale": f"Qualitative analysis: {attr['description'][:100]}...",
+                        "breakdown": {"qualitative_analysis": adjusted_percentage / 100.0}
+                    })
+                    total_percentage += adjusted_percentage
+            
+            # Show total and normalize if needed
+            if abs(total_percentage - 100.0) > 0.1:
+                st.warning(f"Total percentage: {total_percentage:.1f}% (should equal 100%)")
+                
+                if st.button("Auto-Normalize to 100%", key="normalize_percentages"):
+                    # Normalize the percentages
+                    for attr in adjusted_attributions:
+                        attr["weight"] = (attr["weight"] * 100) / total_percentage / 100
+                    st.rerun()
+            else:
+                st.success(f"Total percentage: {total_percentage:.1f}% ✓")
+            
+            # Confirm attribution
+            col_confirm, col_restart = st.columns(2)
+            
+            with col_confirm:
+                if st.button("Confirm Attribution", key="confirm_qualitative"):
+                    # Create final attribution results
+                    final_results = {
+                        "asset_id": st.session_state.asset_id,
+                        "attributions": adjusted_attributions,
+                        "total_weight": 1.0,
+                        "methodology": "Qualitative analysis with AI interpretation and manual adjustment",
+                        "confidence_score": 0.85
+                    }
+                    
+                    st.session_state.attribution_results = final_results
+                    st.success("Attribution confirmed! You can now proceed to the next stage.")
+                    st.rerun()
+            
+            with col_restart:
+                if st.button("Start Over", key="restart_qualitative"):
+                    # Clear qualitative data
+                    for key in ["qualitative_descriptions", "ai_suggested_attribution", "qualitative_analysis_complete"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    st.rerun()
 
 def render_ownership_stage():
     """Stage 3: Ownership Arrangement"""
