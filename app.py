@@ -12,18 +12,28 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import streamlit as st
 import httpx
+import requests
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import uuid
+from io import BytesIO
 
 # Configuration - Use secrets for production, fallback for demo
 try:
     API_BASE = st.secrets["API_BASE"]
     DEMO_MODE = st.secrets.get("DEMO_MODE", "true").lower() == "true"
+    # Pinata IPFS Configuration
+    PINATA_API_KEY = st.secrets.get("PINATA_API_KEY", "d302c51df2c240688e3f")
+    PINATA_SECRET_KEY = st.secrets.get("PINATA_SECRET_KEY", "6ec5073e8c4a04017eac094e5e8afd5a090cf2ced3f0c362a6838f61f93de1d2")
+    PINATA_JWT = st.secrets.get("PINATA_JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMWQxYjZjZC05YWVjLTQzNWItYjkyMi1mM2M3MWVhZWE3OTMiLCJlbWFpbCI6ImFyeWFudGhlamFpbkBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiZDMwMmM1MWRmMmMyNDA2ODhlM2YiLCJzY29wZWRLZXlTZWNyZXQiOiI2ZWM1MDczZThjNGEwNDAxN2VhYzA5NGU1ZThhZmQ1YTA5MGNmMmNlZDNmMGMzNjJhNjgzOGY2MWY5M2RlMWQyIiwiZXhwIjoxNzkzNjE1NDgyfQ.MU76XXth3Rh6pC6oS05T5p9oOGK4etLexaEnVLx64aM")
 except:
     API_BASE = "http://localhost:8000"
     DEMO_MODE = True
+    # Pinata IPFS Configuration - hardcoded for demo
+    PINATA_API_KEY = "d302c51df2c240688e3f"
+    PINATA_SECRET_KEY = "6ec5073e8c4a04017eac094e5e8afd5a090cf2ced3f0c362a6838f61f93de1d2"
+    PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMWQxYjZjZC05YWVjLTQzNWItYjkyMi1mM2M3MWVhZWE3OTMiLCJlbWFpbCI6ImFyeWFudGhlamFpbkBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiZDMwMmM1MWRmMmMyNDA2ODhlM2YiLCJzY29wZWRLZXlTZWNyZXQiOiI2ZWM1MDczZThjNGEwNDAxN2VhYzA5NGU1ZThhZmQ1YTA5MGNmMmNlZDNmMGMzNjJhNjgzOGY2MWY5M2RlMWQyIiwiZXhwIjoxNzkzNjE1NDgyfQ.MU76XXth3Rh6pC6oS05T5p9oOGK4etLexaEnVLx64aM"
 
 # Page configuration
 st.set_page_config(
@@ -334,6 +344,107 @@ PIPELINE_STAGES = [
     {"id": "contracts", "name": "Contract Drafting", "description": "Generate legal agreements"},
     {"id": "licensing", "name": "License & Summary", "description": "License recommendations"}
 ]
+
+def upload_to_pinata(content: str, filename: str, metadata: dict = None) -> dict:
+    """
+    Upload contract content to Pinata IPFS for blockchain storage
+    
+    Args:
+        content: Contract text content
+        filename: Name of the file
+        metadata: Additional metadata for the file
+        
+    Returns:
+        dict: Response with IPFS hash and Pinata URL
+    """
+    try:
+        # Pinata API endpoint
+        url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+        
+        # Prepare headers
+        headers = {
+            "Authorization": f"Bearer {PINATA_JWT}"
+        }
+        
+        # Prepare file data
+        files = {
+            'file': (filename, BytesIO(content.encode('utf-8')), 'text/plain')
+        }
+        
+        # Prepare metadata
+        pinata_metadata = {
+            "name": filename,
+            "keyvalues": {
+                "contract_type": metadata.get("contract_type", "unknown") if metadata else "unknown",
+                "asset_id": str(metadata.get("asset_id", "")) if metadata else "",
+                "created_by": "Eqip.ai",
+                "created_at": datetime.now().isoformat(),
+                "version": "1.0"
+            }
+        }
+        
+        if metadata:
+            pinata_metadata["keyvalues"].update(metadata)
+        
+        data = {
+            'pinataMetadata': json.dumps(pinata_metadata),
+            'pinataOptions': json.dumps({
+                "cidVersion": 1,
+                "wrapWithDirectory": False
+            })
+        }
+        
+        # Upload to Pinata
+        response = requests.post(url, files=files, data=data, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            ipfs_hash = result.get("IpfsHash")
+            
+            return {
+                "success": True,
+                "ipfs_hash": ipfs_hash,
+                "pinata_url": f"https://gateway.pinata.cloud/ipfs/{ipfs_hash}",
+                "ipfs_url": f"https://ipfs.io/ipfs/{ipfs_hash}",
+                "metadata": pinata_metadata
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Pinata upload failed: {response.status_code} - {response.text}"
+            }
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Upload error: {str(e)}"
+        }
+
+def get_pinata_file_info(ipfs_hash: str) -> dict:
+    """Get information about a file stored on Pinata IPFS"""
+    try:
+        url = f"https://api.pinata.cloud/data/pinList?hashContains={ipfs_hash}"
+        headers = {
+            "Authorization": f"Bearer {PINATA_JWT}"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("rows"):
+                file_info = data["rows"][0]
+                return {
+                    "success": True,
+                    "file_info": file_info,
+                    "pinata_url": f"https://gateway.pinata.cloud/ipfs/{ipfs_hash}",
+                    "ipfs_url": f"https://ipfs.io/ipfs/{ipfs_hash}"
+                }
+        
+        return {"success": False, "error": "File not found"}
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 def initialize_session_state():
     """Initialize session state variables"""
@@ -1458,8 +1569,43 @@ def render_contracts_stage():
             ))
             
             if response:
-                st.session_state.generated_contracts[selected_contract] = response
-                st.success(f"{contract_types[selected_contract]} generated successfully!")
+                # Upload contract to Pinata IPFS
+                with st.spinner("Uploading contract to blockchain storage..."):
+                    filename = f"{response['contract_type']}_agreement_{response['agreement_id'][:8]}.txt"
+                    
+                    upload_metadata = {
+                        "contract_type": response['contract_type'],
+                        "asset_id": st.session_state.asset_id,
+                        "agreement_id": response['agreement_id'],
+                        "jurisdiction": jurisdiction,
+                        "contributors": len(st.session_state.ownership_arrangement.get("ownership_table", [])),
+                        "eqip_version": "1.0"
+                    }
+                    
+                    pinata_result = upload_to_pinata(
+                        content=response['draft_text'],
+                        filename=filename,
+                        metadata=upload_metadata
+                    )
+                    
+                    if pinata_result.get("success"):
+                        # Add IPFS information to contract data
+                        response["ipfs_hash"] = pinata_result["ipfs_hash"]
+                        response["pinata_url"] = pinata_result["pinata_url"]
+                        response["ipfs_url"] = pinata_result["ipfs_url"]
+                        response["blockchain_stored"] = True
+                        
+                        st.session_state.generated_contracts[selected_contract] = response
+                        st.success(f"{contract_types[selected_contract]} generated and stored on blockchain!")
+                        st.info(f"🔗 IPFS Hash: `{pinata_result['ipfs_hash']}`")
+                    else:
+                        # Store contract even if IPFS upload fails
+                        response["blockchain_stored"] = False
+                        response["upload_error"] = pinata_result.get("error", "Unknown error")
+                        st.session_state.generated_contracts[selected_contract] = response
+                        st.success(f"{contract_types[selected_contract]} generated successfully!")
+                        st.warning(f"Blockchain storage failed: {pinata_result.get('error', 'Unknown error')}")
+                
                 st.rerun()
     
     # Display generated contracts
@@ -1469,11 +1615,23 @@ def render_contracts_stage():
         for contract_type, contract_data in st.session_state.generated_contracts.items():
             with st.expander(f"{contract_types.get(contract_type, contract_type)} - {contract_data['agreement_id'][:8]}..."):
                 
-                # Contract metadata
-                col_a, col_b = st.columns(2)
+                # Contract metadata with blockchain info
+                col_a, col_b, col_c = st.columns(3)
+                
                 with col_a:
                     st.write(f"**Agreement ID:** {contract_data['agreement_id']}")
                     st.write(f"**Type:** {contract_data['contract_type']}")
+                    
+                    # Blockchain storage status
+                    if contract_data.get("blockchain_stored"):
+                        st.success("✅ Stored on Blockchain")
+                        if contract_data.get("ipfs_hash"):
+                            st.code(f"IPFS: {contract_data['ipfs_hash'][:20]}...")
+                    else:
+                        st.warning("⚠️ Not on Blockchain")
+                        if contract_data.get("upload_error"):
+                            st.error(f"Upload Error: {contract_data['upload_error']}")
+                
                 with col_b:
                     # Download button for contract
                     st.download_button(
@@ -1484,9 +1642,42 @@ def render_contracts_stage():
                         key=f"download_{contract_type}"
                     )
                     
+                    # IPFS links if available
+                    if contract_data.get("pinata_url"):
+                        st.link_button("View on IPFS", contract_data["pinata_url"], help="View contract on IPFS network")
+                
+                with col_c:
                     # Sign URL (placeholder)
                     if st.button("Sign Contract", key=f"sign_{contract_type}"):
                         st.info("In production, this would redirect to DocuSign or HelloSign for electronic signature.")
+                    
+                    # Re-upload to IPFS if failed
+                    if not contract_data.get("blockchain_stored"):
+                        if st.button("Upload to IPFS", key=f"reupload_{contract_type}"):
+                            with st.spinner("Uploading to blockchain..."):
+                                filename = f"{contract_data['contract_type']}_agreement_{contract_data['agreement_id'][:8]}.txt"
+                                upload_metadata = {
+                                    "contract_type": contract_data['contract_type'],
+                                    "asset_id": st.session_state.asset_id,
+                                    "agreement_id": contract_data['agreement_id']
+                                }
+                                
+                                pinata_result = upload_to_pinata(
+                                    content=contract_data["draft_text"],
+                                    filename=filename,
+                                    metadata=upload_metadata
+                                )
+                                
+                                if pinata_result.get("success"):
+                                    contract_data["ipfs_hash"] = pinata_result["ipfs_hash"]
+                                    contract_data["pinata_url"] = pinata_result["pinata_url"]
+                                    contract_data["ipfs_url"] = pinata_result["ipfs_url"]
+                                    contract_data["blockchain_stored"] = True
+                                    st.session_state.generated_contracts[contract_type] = contract_data
+                                    st.success("Contract uploaded to blockchain!")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Upload failed: {pinata_result.get('error', 'Unknown error')}")
                 
                 # Contract text (editable)
                 edited_text = st.text_area(
