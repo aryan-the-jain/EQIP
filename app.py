@@ -239,21 +239,31 @@ input::placeholder {
     color: #2d3748 !important;
 }
 
-/* Radio button options text - make black */
-.stRadio > div > div > label {
+/* Radio button options text - make black with multiple selectors */
+.stRadio > div > div > label,
+.stRadio > div > div > label > div,
+.stRadio > div > div > label span,
+.stRadio > div > div > label p,
+.stRadio label,
+.stRadio label div,
+.stRadio label span {
     color: #000000 !important;
     font-weight: 600 !important;
     font-size: 1rem !important;
 }
 
-.stRadio > div > div > label > div {
+/* Force black text on radio options */
+[data-testid="stRadio"] label,
+[data-testid="stRadio"] label div,
+[data-testid="stRadio"] label span {
     color: #000000 !important;
     font-weight: 600 !important;
 }
 
-/* Radio button text content */
-.stRadio > div > div > label span {
+/* Radio button container text */
+.stRadio div[role="radiogroup"] label {
     color: #000000 !important;
+    font-weight: 600 !important;
 }
 
 /* Radio button input styling */
@@ -282,6 +292,16 @@ input::placeholder {
         padding: 0.3rem 0.6rem !important;
         white-space: nowrap !important;
     }
+}
+
+/* Global radio button text override */
+.stRadio * {
+    color: #000000 !important;
+}
+
+/* Ensure radio button text is always black */
+.stRadio [role="radiogroup"] * {
+    color: #000000 !important;
 }
 </style>
 """, unsafe_allow_html=True)
