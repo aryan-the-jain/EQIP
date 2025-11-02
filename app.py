@@ -513,11 +513,22 @@ async def call_api_async_demo(endpoint: str, method: str = "POST", data: dict = 
         return {"asset_id": 12345}
     
     elif "/v1/agents/ip-options" in endpoint:
-        # Get the user's question to provide more relevant responses
+        # Get the user's question and conversation context for more intelligent responses
         question = data.get("questions", "").lower()
+        conversation_context = data.get("conversation_context", [])
         
-        # Provide different responses based on question content
-        if any(word in question for word in ["patent", "invention", "algorithm", "technical", "innovation"]):
+        # Check conversation history for context
+        previous_topics = []
+        if conversation_context:
+            for msg in conversation_context[-3:]:  # Last 3 messages
+                if msg.get("role") == "user":
+                    previous_topics.append(msg.get("content", "").lower())
+        
+        # Combine current question with previous context
+        full_context = f"{question} {' '.join(previous_topics)}"
+        
+        # More intelligent response selection based on question content and context
+        if any(word in full_context for word in ["patent", "invention", "algorithm", "technical", "innovation", "novel"]):
             return {
                 "options": [
                     "Patent Protection: File a patent application for novel technical inventions",
@@ -544,7 +555,89 @@ async def call_api_async_demo(endpoint: str, method: str = "POST", data: dict = 
                 ]
             }
         
-        elif any(word in question for word in ["trademark", "brand", "logo", "name", "mark"]):
+        elif any(word in full_context for word in ["more", "detail", "explain", "elaborate", "tell me more", "how", "why", "what"]) and previous_topics:
+            # Handle follow-up questions with more detailed responses
+            if any(word in full_context for word in ["copyright", "creative", "work"]):
+                return {
+                    "options": [
+                        "Copyright Duration: UK copyright lasts for 70 years after author's death for literary works",
+                        "Automatic Protection: Copyright exists automatically upon creation - no registration required",
+                        "Fair Dealing: UK allows limited use for research, criticism, review, and news reporting",
+                        "Moral Rights: Authors retain rights of attribution and integrity even after assignment"
+                    ],
+                    "risks": [
+                        "Copyright only protects expression, not underlying ideas or concepts",
+                        "Proving authorship can be challenging without proper documentation",
+                        "International protection varies - some countries require registration",
+                        "Digital piracy and unauthorized copying remain significant enforcement challenges"
+                    ],
+                    "next_steps": [
+                        "Document creation dates and authorship with timestamped evidence",
+                        "Consider copyright notices (© symbol) for additional protection",
+                        "Register with copyright collecting societies for licensing revenue",
+                        "Implement digital rights management (DRM) for valuable digital works"
+                    ],
+                    "citations": [
+                        "Copyright, Designs and Patents Act 1988 - Sections 1-15",
+                        "UK Copyright Service - Duration and Ownership Guidelines",
+                        "European Copyright Directive 2019/790"
+                    ]
+                }
+            elif any(word in full_context for word in ["patent", "invention"]):
+                return {
+                    "options": [
+                        "Patent Search Strategy: Conduct comprehensive prior art searches before filing",
+                        "Patent Prosecution: Navigate examination process with patent attorney guidance",
+                        "International Filing: Use PCT system for global patent protection",
+                        "Patent Portfolio: Build strategic patent portfolio around core innovations"
+                    ],
+                    "risks": [
+                        "Patent prosecution can take 2-4 years and cost £10,000-50,000+ per patent",
+                        "Patent applications are published 18 months after filing, revealing technology",
+                        "Patent validity can be challenged by competitors through opposition proceedings",
+                        "Enforcement requires active monitoring and expensive litigation"
+                    ],
+                    "next_steps": [
+                        "Engage qualified patent attorney for professional prior art search",
+                        "Prepare detailed technical specifications and drawings",
+                        "Consider provisional patent filing to establish early priority date",
+                        "Develop patent strategy aligned with business commercialization plans"
+                    ],
+                    "citations": [
+                        "UK Patents Act 1977 - Patentability Requirements",
+                        "European Patent Convention - Article 52-57",
+                        "UKIPO Patent Practice Manual 2024"
+                    ]
+                }
+            else:
+                # General detailed response
+                return {
+                    "options": [
+                        "IP Audit: Conduct comprehensive review of all intellectual property assets",
+                        "Protection Strategy: Develop multi-layered IP protection approach",
+                        "Commercial Licensing: Explore revenue opportunities through IP licensing",
+                        "IP Insurance: Consider IP insurance for valuable patent portfolios"
+                    ],
+                    "risks": [
+                        "Unprotected IP can be freely copied by competitors",
+                        "IP rights require active maintenance and renewal fees",
+                        "Global protection requires separate filings in each jurisdiction",
+                        "IP enforcement can be costly and time-consuming"
+                    ],
+                    "next_steps": [
+                        "Identify and catalog all potentially protectable IP assets",
+                        "Prioritize IP protection based on commercial value and risk",
+                        "Develop IP policies and procedures for ongoing protection",
+                        "Consider IP management software for portfolio tracking"
+                    ],
+                    "citations": [
+                        "UK IP Strategy 2021-2024",
+                        "World Intellectual Property Organization (WIPO) Guidelines",
+                        "IP Commercialization Best Practices"
+                    ]
+                }
+        
+        elif any(word in full_context for word in ["trademark", "brand", "logo", "name", "mark"]):
             return {
                 "options": [
                     "Trademark Registration: Register distinctive brand elements with UKIPO",
@@ -652,33 +745,115 @@ async def call_api_async_demo(endpoint: str, method: str = "POST", data: dict = 
                 ]
             }
         
-        else:
-            # Default general response for other questions
+        elif any(word in full_context for word in ["cost", "price", "expensive", "budget", "cheap", "affordable"]):
             return {
                 "options": [
-                    "Copyright Protection: Automatic protection for creative works in the UK",
-                    "Trademark Protection: Consider registering distinctive brand elements",
-                    "Design Rights: Protect visual appearance and configuration",
-                    "Patent Protection: For novel technical inventions and processes"
+                    "DIY Copyright: Free automatic protection - just document creation dates properly",
+                    "Trademark Self-Filing: UKIPO online filing costs £170-200 for basic registration",
+                    "Patent Attorney Consultation: Initial consultations often £200-500 for assessment",
+                    "IP Insurance: Consider IP insurance to manage enforcement costs"
                 ],
                 "risks": [
-                    "Different IP rights have varying protection scopes and durations",
-                    "Public disclosure may limit future patent options",
-                    "International protection requires separate registrations",
-                    "IP enforcement requires active monitoring and legal action"
+                    "Self-filing without professional help increases risk of rejection or weak protection",
+                    "Patent costs can escalate quickly: £10,000-50,000+ for full prosecution",
+                    "International protection multiplies costs across multiple jurisdictions",
+                    "Enforcement litigation can cost £100,000+ even for straightforward cases"
                 ],
                 "next_steps": [
-                    "Identify which type of IP protection best fits your asset",
-                    "Document creation and ownership details thoroughly",
-                    "Consider formal IP registration where applicable",
-                    "Consult with IP attorney for complex cases"
+                    "Start with free copyright protection by documenting creation properly",
+                    "Get professional cost estimates for your specific IP needs",
+                    "Consider phased approach: start domestic, expand internationally later",
+                    "Budget for ongoing maintenance fees and renewal costs"
                 ],
                 "citations": [
-                    "UK Intellectual Property Framework - gov.uk/ip-guidance",
-                    "Copyright, Designs and Patents Act 1988",
-                    "UK Trade Marks Act 1994"
+                    "UKIPO Fee Schedule 2024",
+                    "IP Attorney Cost Surveys",
+                    "SME IP Protection Cost Guidelines"
                 ]
             }
+        
+        elif any(word in full_context for word in ["international", "global", "worldwide", "europe", "usa", "china"]):
+            return {
+                "options": [
+                    "Madrid Protocol: International trademark registration system covering 100+ countries",
+                    "PCT System: Patent Cooperation Treaty for streamlined international patent filing",
+                    "Paris Convention: Priority rights for filing in multiple countries within 12 months",
+                    "Regional Systems: EU trademarks, European patents for efficient regional coverage"
+                ],
+                "risks": [
+                    "International IP protection is expensive - costs multiply by number of countries",
+                    "Different countries have varying IP laws and enforcement standards",
+                    "Translation costs and local attorney fees add significant expense",
+                    "Some countries require local use or working requirements for patents"
+                ],
+                "next_steps": [
+                    "Prioritize key markets based on commercial importance and budget",
+                    "File priority applications in home country first to establish dates",
+                    "Research local IP laws and requirements in target countries",
+                    "Consider regional systems (EU, ARIPO, OAPI) for efficient coverage"
+                ],
+                "citations": [
+                    "Madrid Protocol Implementation Guide",
+                    "PCT Applicant's Guide 2024",
+                    "WIPO International IP Protection Strategies"
+                ]
+            }
+        
+        else:
+            # Enhanced default response with more variety based on question patterns
+            question_words = question.split()
+            if len(question_words) > 5:  # Longer, more specific questions
+                return {
+                    "options": [
+                        "Comprehensive IP Strategy: Develop holistic approach covering all IP types relevant to your business",
+                        "Risk Assessment: Evaluate IP landscape and potential infringement risks in your sector",
+                        "Competitive Analysis: Research competitor IP portfolios to identify opportunities and threats",
+                        "IP Valuation: Assess commercial value of your IP assets for business planning"
+                    ],
+                    "risks": [
+                        "Complex IP landscapes require careful navigation to avoid infringement",
+                        "Competitor IP may block your freedom to operate in certain areas",
+                        "IP strategies must align with business goals and available resources",
+                        "Regular IP audits needed to maintain and optimize protection"
+                    ],
+                    "next_steps": [
+                        "Conduct thorough IP landscape analysis in your technology/market area",
+                        "Develop IP strategy document aligned with business objectives",
+                        "Establish IP management processes and regular review cycles",
+                        "Consider IP management software for portfolio tracking and deadlines"
+                    ],
+                    "citations": [
+                        "Strategic IP Management Best Practices",
+                        "IP Landscape Analysis Methodologies",
+                        "Business-IP Alignment Frameworks"
+                    ]
+                }
+            else:  # Shorter, general questions
+                return {
+                    "options": [
+                        "Copyright Protection: Automatic protection for creative works in the UK",
+                        "Trademark Protection: Consider registering distinctive brand elements",
+                        "Design Rights: Protect visual appearance and configuration",
+                        "Patent Protection: For novel technical inventions and processes"
+                    ],
+                    "risks": [
+                        "Different IP rights have varying protection scopes and durations",
+                        "Public disclosure may limit future patent options",
+                        "International protection requires separate registrations",
+                        "IP enforcement requires active monitoring and legal action"
+                    ],
+                    "next_steps": [
+                        "Identify which type of IP protection best fits your asset",
+                        "Document creation and ownership details thoroughly",
+                        "Consider formal IP registration where applicable",
+                        "Consult with IP attorney for complex cases"
+                    ],
+                    "citations": [
+                        "UK Intellectual Property Framework - gov.uk/ip-guidance",
+                        "Copyright, Designs and Patents Act 1988",
+                        "UK Trade Marks Act 1994"
+                    ]
+                }
     
     elif "/v1/agents/attribution/run" in endpoint:
         contributors = data.get("contributors", [])
