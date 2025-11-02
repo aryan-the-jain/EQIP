@@ -228,6 +228,12 @@ def run_ownership_arrangement(payload: OwnershipArrangementIn) -> OwnershipArran
     
     total_shares = payload.policy_params.get("total_shares", 1000000)
     
+    # Debug: Print what we received
+    print(f"DEBUG - Policy Type: {payload.policy_type}")
+    print(f"DEBUG - Policy Params: {payload.policy_params}")
+    print(f"DEBUG - Total Shares: {total_shares}")
+    print(f"DEBUG - Attribution Weights: {[{'email': attr.contributor_email, 'weight': attr.weight} for attr in payload.attribution_weights]}")
+    
     # Calculate ownership based on policy type
     if payload.policy_type == "equal":
         ownership_shares = calculate_equal_ownership(payload.attribution_weights, total_shares)
