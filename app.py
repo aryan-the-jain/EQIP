@@ -233,10 +233,17 @@ input::placeholder {
     border: 2px solid #667eea;
 }
 
+/* Radio button main label - should be white */
 .stRadio > div > label {
     font-weight: 600 !important;
     font-size: 1.1rem !important;
-    color: #2d3748 !important;
+    color: #ffffff !important;
+}
+
+/* Radio button question text - white */
+.stRadio label:first-child {
+    color: #ffffff !important;
+    font-weight: 600 !important;
 }
 
 /* Radio button options text - make black with multiple selectors */
@@ -294,12 +301,25 @@ input::placeholder {
     }
 }
 
-/* Global radio button text override */
-.stRadio * {
+/* Specific targeting for radio button elements */
+/* Main radio question label - white */
+.stRadio > label {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Radio option labels - black */
+.stRadio [role="radiogroup"] label {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
+
+/* Radio option text content - black */
+.stRadio [role="radiogroup"] label div {
     color: #000000 !important;
 }
 
-/* Ensure radio button text is always black */
+/* Override any inherited colors for radio options */
 .stRadio [role="radiogroup"] * {
     color: #000000 !important;
 }
