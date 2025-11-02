@@ -613,25 +613,411 @@ def render_ip_options_stage():
                         st.session_state.messages.append({"role": "assistant", "content": response_text})
                         st.session_state.pipeline_data["ip_options"] = response
 
-def render_simple_stages():
-    """Render simplified versions of other stages for demo"""
-    current_stage = st.session_state.current_stage
+def render_attribution_stage():
+    """Stage 2: Contribution Attribution"""
+    st.markdown('<div class="stage-header">Contribution Attribution</div>', unsafe_allow_html=True)
     
-    if current_stage == 1:
-        st.markdown('<div class="stage-header">Contribution Attribution</div>', unsafe_allow_html=True)
-        st.info("This stage would analyze contributor efforts and calculate weighted attribution. In demo mode, click 'Next' to continue.")
+    # Contributors management
+    st.markdown("### Contributors")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Add contributor form
+        with st.expander("Add Contributor", expanded=len(st.session_state.contributors) == 0):
+            with st.form("add_contributor"):
+                email = st.text_input("Email")
+                name = st.text_input("Display Name")
+                org = st.text_input("Organization (optional)")
+                
+                if st.form_submit_button("Add Contributor"):
+                    if email and name:
+                        contributor = {"email": email, "display_name": name, "org": org or None}
+                        if contributor not in st.session_state.contributors:
+                            st.session_state.contributors.append(contributor)
+                            st.success(f"Added {name}")
+                            st.rerun()
+                    else:
+                        st.error("Email and name are required")
+    
+    with col2:
+        # Display current contributors
+        if st.session_state.contributors:
+            st.markdown("**Current Contributors:**")
+            for i, contrib in enumerate(st.session_state.contributors):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.write(f"• {contrib['display_name']} ({contrib['email']})")
+                with col_b:
+                    if st.button("Remove", key=f"remove_contrib_{i}"):
+                        st.session_state.contributors.pop(i)
+                        st.rerun()
+    
+    # Contribution events
+    if st.session_state.contributors:
+        st.markdown("### Contribution Events")
         
-    elif current_stage == 2:
-        st.markdown('<div class="stage-header">Ownership Arrangement</div>', unsafe_allow_html=True)
-        st.info("This stage would finalize ownership structure based on attribution. In demo mode, click 'Next' to continue.")
+        # Add contribution event
+        with st.expander("Add Contribution Event"):
+            with st.form("add_contribution"):
+                contributor_email = st.selectbox(
+                    "Contributor",
+                    [c["email"] for c in st.session_state.contributors],
+                    key="contributor_select"
+                )
+                event_type = st.selectbox(
+                    "Contribution Type",
+                    ["code", "design", "review", "documentation", "testing"],
+                    key="event_type_select"
+                )
+                
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    lines_of_code = st.number_input("Lines of Code", min_value=0, value=0)
+                with col_b:
+                    hours_spent = st.number_input("Hours Spent", min_value=0.0, value=0.0, step=0.5)
+                with col_c:
+                    complexity = st.selectbox("Complexity", [1.0, 1.5, 2.0, 2.5, 3.0], index=0, key="complexity_select")
+                
+                description = st.text_area("Description (optional)")
+                
+                if st.form_submit_button("Add Event"):
+                    event = {
+                        "contributor_email": contributor_email,
+                        "event_type": event_type,
+                        "lines_of_code": lines_of_code,
+                        "hours_spent": hours_spent,
+                        "complexity_score": complexity,
+                        "description": description,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    st.session_state.contribution_events.append(event)
+                    st.success("Added contribution event")
+                    st.rerun()
         
-    elif current_stage == 3:
-        st.markdown('<div class="stage-header">Contract Drafting</div>', unsafe_allow_html=True)
-        st.info("This stage would generate legal contracts. In demo mode, click 'Next' to continue.")
+        # Display events
+        if st.session_state.contribution_events:
+            st.markdown("**Contribution Events:**")
+            events_df = pd.DataFrame(st.session_state.contribution_events)
+            st.dataframe(events_df)
         
-    elif current_stage == 4:
-        st.markdown('<div class="stage-header">License & Summary</div>', unsafe_allow_html=True)
-        st.info("This stage would provide license recommendations and final summary. Demo complete!")
+        # Run attribution analysis
+        if st.button("Analyze Contributions", key="run_attribution"):
+            if st.session_state.contributors:
+                with st.spinner("Analyzing contributions..."):
+                    response = asyncio.run(call_api_async(
+                        "/v1/agents/attribution/run",
+                        data={
+                            "asset_id": st.session_state.asset_id,
+                            "contributors": st.session_state.contributors,
+                            "contribution_events": st.session_state.contribution_events,
+                            "team_votes": [],
+                            "mode": "hybrid"
+                        }
+                    ))
+                    
+                    if response:
+                        st.session_state.attribution_results = response
+                        st.success("Attribution analysis complete!")
+                        st.rerun()
+        
+        # Display attribution results
+        if st.session_state.attribution_results:
+            st.markdown("### Attribution Results")
+            
+            results = st.session_state.attribution_results
+            
+            # Create visualization
+            attributions = results["attributions"]
+            names = [attr["contributor_name"] for attr in attributions]
+            weights = [attr["weight"] for attr in attributions]
+            
+            # Pie chart
+            fig = px.pie(
+                values=weights,
+                names=names,
+                title="Contribution Attribution",
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Attribution table
+            st.markdown("**Detailed Attribution:**")
+            for attr in attributions:
+                with st.expander(f"{attr['contributor_name']} - {attr['weight']:.1%}"):
+                    st.write(f"**Rationale:** {attr['rationale']}")
+                    if attr.get("breakdown"):
+                        st.write("**Breakdown by type:**")
+                        for contrib_type, score in attr["breakdown"].items():
+                            if score > 0:
+                                st.write(f"• {contrib_type}: {score:.2f}")
+            
+            # Methodology info
+            st.info(f"**Methodology:** {results['methodology']} (Confidence: {results['confidence_score']:.1%})")
+
+def render_ownership_stage():
+    """Stage 3: Ownership Arrangement"""
+    st.markdown('<div class="stage-header">Ownership Arrangement</div>', unsafe_allow_html=True)
+    
+    if not st.session_state.attribution_results:
+        st.warning("Please complete the Contribution Attribution stage first.")
+        return
+    
+    # Policy selection
+    st.markdown("### Ownership Policy")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        policy_type = st.selectbox(
+            "Select Ownership Policy",
+            ["equal", "weighted", "funding_based", "time_vested"],
+            format_func=lambda x: {
+                "equal": "Equal Split - All contributors get equal shares",
+                "weighted": "Weighted by Contribution - Shares based on attribution",
+                "funding_based": "Funding-Based - Considers financial investment",
+                "time_vested": "Time-Vested - Shares vest over time"
+            }[x],
+            key="policy_type_select"
+        )
+    
+    with col2:
+        total_shares = st.number_input("Total Shares", min_value=1000, value=1000000, step=1000)
+    
+    # Generate ownership arrangement
+    if st.button("Finalize Ownership Arrangement", key="finalize_ownership"):
+        with st.spinner("Calculating ownership arrangement..."):
+            response = asyncio.run(call_api_async(
+                "/v1/agents/allocation/finalize",
+                data={
+                    "asset_id": st.session_state.asset_id,
+                    "attribution_weights": st.session_state.attribution_results["attributions"],
+                    "policy_type": policy_type,
+                    "policy_params": {"total_shares": total_shares}
+                }
+            ))
+            
+            if response:
+                st.session_state.ownership_arrangement = response
+                st.success("Ownership arrangement finalized!")
+                st.rerun()
+    
+    # Display ownership arrangement
+    if st.session_state.ownership_arrangement:
+        st.markdown("### Ownership Structure")
+        
+        arrangement = st.session_state.ownership_arrangement
+        
+        # Ownership table
+        ownership_data = []
+        for share in arrangement["ownership_table"]:
+            ownership_data.append({
+                "Contributor": share["contributor_name"],
+                "Email": share["contributor_email"],
+                "Shares": f"{share['shares']:,}",
+                "Percentage": f"{share['percentage']:.2f}%",
+                "Governance": share["governance_rights"]
+            })
+        
+        df = pd.DataFrame(ownership_data)
+        st.dataframe(df, use_container_width=True)
+        
+        # Visualization
+        names = [share["contributor_name"] for share in arrangement["ownership_table"]]
+        percentages = [share["percentage"] for share in arrangement["ownership_table"]]
+        
+        fig = go.Figure(data=[go.Bar(x=names, y=percentages)])
+        fig.update_layout(
+            title="Ownership Distribution",
+            xaxis_title="Contributors",
+            yaxis_title="Ownership Percentage",
+            showlegend=False
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.info(f"**Governance:** {arrangement['governance_summary']}")
+
+def render_contracts_stage():
+    """Stage 4: Contract Drafting"""
+    st.markdown('<div class="stage-header">Contract Drafting</div>', unsafe_allow_html=True)
+    
+    if not st.session_state.ownership_arrangement:
+        st.warning("Please complete the Ownership Arrangement stage first.")
+        return
+    
+    # Contract type selection
+    st.markdown("### Contract Generation")
+    
+    contract_types = {
+        "nda": "Non-Disclosure Agreement",
+        "ip_assignment": "IP Assignment Agreement", 
+        "jda": "Joint Development Agreement",
+        "revenue_share": "Revenue Sharing Addendum"
+    }
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        selected_contract = st.selectbox(
+            "Select Contract Type",
+            list(contract_types.keys()),
+            format_func=lambda x: contract_types[x],
+            key="contract_type_select"
+        )
+    
+    with col2:
+        jurisdiction = st.selectbox(
+            "Jurisdiction",
+            ["UK", "US", "EU", "CA", "AU"],
+            index=0,
+            key="jurisdiction_select"
+        )
+    
+    # Generate contract
+    if st.button(f"Generate {contract_types[selected_contract]}", key="generate_contract"):
+        with st.spinner("Generating contract..."):
+            response = asyncio.run(call_api_async(
+                "/v1/agreements/generate",
+                data={
+                    "asset_id": st.session_state.asset_id,
+                    "contract_type": selected_contract,
+                    "ownership_arrangement": st.session_state.ownership_arrangement,
+                    "additional_clauses": [],
+                    "jurisdiction": jurisdiction
+                }
+            ))
+            
+            if response:
+                st.session_state.generated_contracts[selected_contract] = response
+                st.success(f"{contract_types[selected_contract]} generated successfully!")
+                st.rerun()
+    
+    # Display generated contracts
+    if st.session_state.generated_contracts:
+        st.markdown("### Generated Contracts")
+        
+        for contract_type, contract_data in st.session_state.generated_contracts.items():
+            with st.expander(f"{contract_types.get(contract_type, contract_type)} - {contract_data['agreement_id'][:8]}..."):
+                
+                # Contract metadata
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.write(f"**Agreement ID:** {contract_data['agreement_id']}")
+                    st.write(f"**Type:** {contract_data['contract_type']}")
+                with col_b:
+                    # Download button for contract
+                    st.download_button(
+                        "Download Contract",
+                        data=contract_data["draft_text"],
+                        file_name=f"{contract_data['contract_type']}_agreement_{contract_data['agreement_id'][:8]}.txt",
+                        mime="text/plain",
+                        key=f"download_{contract_type}"
+                    )
+                    
+                    # Sign URL (placeholder)
+                    if st.button("Sign Contract", key=f"sign_{contract_type}"):
+                        st.info("In production, this would redirect to DocuSign or HelloSign for electronic signature.")
+                
+                # Contract text (editable)
+                edited_text = st.text_area(
+                    "Contract Text (Editable)",
+                    value=contract_data["draft_text"],
+                    height=400,
+                    key=f"contract_text_{contract_type}"
+                )
+                
+                # Clauses
+                st.write("**Included Clauses:**")
+                for clause in contract_data["clauses"]:
+                    st.write(f"• {clause}")
+
+def render_licensing_stage():
+    """Stage 5: License & Summary"""
+    st.markdown('<div class="stage-header">License & Summary</div>', unsafe_allow_html=True)
+    
+    if not st.session_state.ownership_arrangement:
+        st.warning("Please complete the Ownership Arrangement stage first.")
+        return
+    
+    # License recommendation parameters
+    st.markdown("### License Recommendation")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        intended_use = st.selectbox(
+            "Intended Use",
+            ["commercial", "open_source", "research"],
+            format_func=lambda x: x.replace("_", " ").title(),
+            key="intended_use_select"
+        )
+    
+    with col2:
+        asset_type = st.selectbox(
+            "Asset Type",
+            ["software", "dataset", "media", "documentation"],
+            index=0,
+            key="license_asset_type_select"
+        )
+    
+    # Dependencies
+    dependencies_text = st.text_area(
+        "Dependencies (one per line)",
+        placeholder="MIT\nApache-2.0\nGPL-3.0"
+    )
+    dependencies = [dep.strip() for dep in dependencies_text.split('\n') if dep.strip()]
+    
+    # Generate license recommendations
+    if st.button("Get License Recommendations", key="get_licenses"):
+        with st.spinner("Analyzing license options..."):
+            response = asyncio.run(call_api_async(
+                "/v1/license/recommend",
+                data={
+                    "asset_id": st.session_state.asset_id,
+                    "asset_type": asset_type,
+                    "ownership_arrangement": st.session_state.ownership_arrangement,
+                    "intended_use": intended_use,
+                    "dependencies": dependencies
+                }
+            ))
+            
+            if response:
+                st.session_state.license_recommendations = response
+                st.success("License recommendations generated!")
+                st.rerun()
+    
+    # Display license recommendations
+    if st.session_state.license_recommendations:
+        st.markdown("### License Recommendations")
+        
+        recs = st.session_state.license_recommendations
+        
+        # Primary recommendation
+        if recs.get("primary_recommendation"):
+            primary = recs["primary_recommendation"]
+            st.markdown("#### Primary Recommendation")
+            
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.markdown(f"**{primary['license_name']}**")
+                st.write(primary["rationale"])
+                st.write(f"**Usage Terms:** {primary['usage_terms']}")
+            with col_b:
+                st.metric("Compatibility Score", f"{primary['compatibility_score']:.1%}")
+        
+        # All recommendations
+        st.markdown("#### All Recommendations")
+        
+        rec_data = []
+        for rec in recs["recommended_licenses"]:
+            rec_data.append({
+                "License": rec["license_name"],
+                "Score": f"{rec['compatibility_score']:.1%}",
+                "Rationale": rec["rationale"][:100] + "..." if len(rec["rationale"]) > 100 else rec["rationale"]
+            })
+        
+        df = pd.DataFrame(rec_data)
+        st.dataframe(df, use_container_width=True)
 
 def render_general_chat():
     """Render general IP advice chat section"""
@@ -752,8 +1138,14 @@ def main():
         current_stage = st.session_state.current_stage
         if current_stage == 0:
             render_ip_options_stage()
-        else:
-            render_simple_stages()
+        elif current_stage == 1:
+            render_attribution_stage()
+        elif current_stage == 2:
+            render_ownership_stage()
+        elif current_stage == 3:
+            render_contracts_stage()
+        elif current_stage == 4:
+            render_licensing_stage()
     
     with tab2:
         render_general_chat()
