@@ -1,0 +1,29 @@
+# Streamlit Cloud Deployment Requirements
+# Minimal requirements for frontend-only deployment
+
+# Core Streamlit
+streamlit==1.39.0
+
+# HTTP client for API calls
+httpx==0.27.2
+
+# Data visualization
+plotly==5.17.0
+pandas==2.1.4
+
+# Data handling
+pydantic==2.9.2
+
+# Optional: For full functionality (if backend is available)
+# fastapi==0.115.5
+# uvicorn[standard]==0.30.6
+# SQLAlchemy==2.0.36
+# psycopg[binary]==3.2.3
+# pgvector==0.3.6
+# openai==1.51.2
+# langchain==0.3.7
+# jinja2==3.1.4
+
+# For PDF generation (optional)
+# reportlab==4.0.7
+# weasyprint==60.2
