@@ -1478,14 +1478,19 @@ def render_ownership_stage():
             )
             funding_data[contributor_email] = funding_amount
         
-        sweat_equity_weight = st.slider(
-            "Sweat Equity Weight",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.3,
-            step=0.1,
-            help="What percentage of ownership should be based on contribution vs funding? 0.3 means 30% based on contribution, 70% on funding."
+        funding_priority = st.radio(
+            "Funding Priority",
+            ["Funding Primary", "Balanced", "Contribution Primary"],
+            index=1,
+            help="Choose how to balance funding vs contribution"
         )
+        
+        if funding_priority == "Funding Primary":
+            sweat_equity_weight = 0.1  # 10% contribution, 90% funding
+        elif funding_priority == "Balanced":
+            sweat_equity_weight = 0.3  # 30% contribution, 70% funding  
+        else:  # Contribution Primary
+            sweat_equity_weight = 0.7  # 70% contribution, 30% funding
         
         policy_params.update({
             "funding": funding_data,
@@ -1541,12 +1546,6 @@ def render_ownership_stage():
     # Generate ownership arrangement
     if st.button("Finalize Ownership Arrangement", key="finalize_ownership"):
         with st.spinner("Calculating ownership arrangement..."):
-            # Debug: Show what we're sending
-            st.write("**Debug - Sending to API:**")
-            st.write(f"Policy Type: {policy_type}")
-            st.write(f"Policy Params: {policy_params}")
-            st.write(f"Attribution Weights: {st.session_state.attribution_results['attributions']}")
-            
             response = asyncio.run(call_api_async(
                 "/v1/agents/allocation/finalize",
                 data={
@@ -1559,6 +1558,7 @@ def render_ownership_stage():
             
             if response:
                 st.session_state.ownership_arrangement = response
+                st.session_state.ownership_total_shares_input = total_shares
                 st.success("Ownership arrangement finalized!")
                 st.rerun()
     
@@ -1582,8 +1582,9 @@ def render_ownership_stage():
         df = pd.DataFrame(ownership_data)
         st.dataframe(df, use_container_width=True)
         
-        # Display total shares actually used
-        st.info(f"**Total Shares:** {arrangement['total_shares']:,} | **Policy Applied:** {arrangement['policy_applied']}")
+        # Display total shares actually used vs input
+        input_shares = st.session_state.get('ownership_total_shares_input', 'Unknown')
+        st.info(f"**Total Shares Used:** {arrangement['total_shares']:,} | **Total Shares Input:** {input_shares:,} | **Policy Applied:** {arrangement['policy_applied']}")
         
         # Visualization
         names = [share["contributor_name"] for share in arrangement["ownership_table"]]
